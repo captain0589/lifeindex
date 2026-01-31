@@ -15,6 +15,12 @@ struct FitnessView: View {
                         sleepMinutes: healthKitManager.todaySummary.metrics[.sleepDuration]
                     )
 
+                    // Steps This Week
+                    if !healthKitManager.weeklyData.isEmpty {
+                        StepsWeeklyCard(data: healthKitManager.weeklyData)
+                            .padding(.horizontal)
+                    }
+
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Recent Workouts")
                             .font(Theme.title)
@@ -37,6 +43,7 @@ struct FitnessView: View {
                 .padding(.bottom, 20)
             }
             .navigationTitle("Fitness")
+            .navigationBarTitleDisplayMode(.inline)
             .refreshable {
                 await loadData()
             }
@@ -55,7 +62,145 @@ struct FitnessView: View {
         isLoading = true
         await healthKitManager.fetchTodaySummary()
         await healthKitManager.fetchRecentWorkouts()
+        await healthKitManager.fetchWeeklyData()
         isLoading = false
+    }
+}
+
+// MARK: - Steps Weekly Card
+
+struct StepsWeeklyCard: View {
+    let data: [DailyHealthSummary]
+
+    @State private var selectedDay: String?
+
+    private func summaryFor(day: String?) -> DailyHealthSummary? {
+        guard let day else { return nil }
+        return data.first { $0.date.shortDayName == day }
+    }
+
+    private var weeklyAverage: Int {
+        let stepsData = data.compactMap { $0.metrics[.steps] }
+        guard !stepsData.isEmpty else { return 0 }
+        return Int(stepsData.reduce(0, +) / Double(stepsData.count))
+    }
+
+    private var todaySteps: Int {
+        guard let today = data.first(where: { Calendar.current.isDateInToday($0.date) }),
+              let steps = today.metrics[.steps] else { return 0 }
+        return Int(steps)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            // Header
+            HStack {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "figure.walk")
+                        .font(.system(size: Theme.IconSize.sm, weight: .semibold))
+                        .foregroundStyle(Theme.steps)
+                    Text("Steps This Week")
+                        .font(.system(.headline, design: .rounded, weight: .bold))
+                }
+
+                Spacer()
+
+                if let day = selectedDay, let summary = summaryFor(day: day),
+                   let steps = summary.metrics[.steps] {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Text(day)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Theme.secondaryText)
+                        Text("\(Int(steps))")
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(Theme.steps)
+                    }
+                    .transition(.opacity)
+                }
+            }
+
+            // Today's stats row
+            HStack(spacing: Theme.Spacing.lg) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Today")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Theme.secondaryText)
+                    Text("\(todaySteps.formatted())")
+                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .foregroundStyle(Theme.steps)
+                }
+
+                Divider()
+                    .frame(height: 30)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Weekly Avg")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Theme.secondaryText)
+                    Text("\(weeklyAverage.formatted())")
+                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .foregroundStyle(Theme.secondaryText)
+                }
+
+                Spacer()
+            }
+            .padding(.bottom, Theme.Spacing.xs)
+
+            // Chart
+            Chart(data) { summary in
+                let dayName = summary.date.shortDayName
+                if summary.metrics[.steps] != nil {
+                    BarMark(
+                        x: .value("Day", dayName),
+                        y: .value("Steps", summary.metrics[.steps]!)
+                    )
+                    .foregroundStyle(selectedDay == dayName ? Theme.steps : Theme.steps.opacity(0.7))
+                    .cornerRadius(4)
+                } else {
+                    BarMark(
+                        x: .value("Day", dayName),
+                        y: .value("Steps", 500)
+                    )
+                    .foregroundStyle(Color.gray.opacity(0.2))
+                    .cornerRadius(4)
+                }
+
+                if selectedDay == dayName {
+                    RuleMark(x: .value("Day", dayName))
+                        .foregroundStyle(Theme.secondaryText.opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                }
+            }
+            .frame(height: 120)
+            .chartOverlay { proxy in
+                GeometryReader { geo in
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            guard let plotFrame = proxy.plotFrame else { return }
+                            let origin = geo[plotFrame].origin
+                            let x = location.x - origin.x
+                            if let tappedDay: String = proxy.value(atX: x) {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    selectedDay = selectedDay == tappedDay ? nil : tappedDay
+                                }
+                            }
+                        }
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) { value in
+                    AxisValueLabel {
+                        if let v = value.as(Double.self) {
+                            Text("\(Int(v / 1000))k")
+                                .font(.system(.caption2, design: .rounded))
+                        }
+                    }
+                }
+            }
+        }
+        .cardStyle()
     }
 }
 

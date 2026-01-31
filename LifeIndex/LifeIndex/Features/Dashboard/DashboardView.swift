@@ -4,23 +4,26 @@ import Charts
 struct DashboardView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @ObservedObject var viewModel: DashboardViewModel
+    @State private var showFoodLog = false
+    @State private var nutritionManager: NutritionManager?
+    @State private var foodLogViewModel: FoodLogViewModel?
+    @State private var showYesterdayReport = false
+
+    private var isLateNight: Bool {
+        let hour = Calendar.current.component(.hour, from: Date())
+        return hour >= 0 && hour < 6
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Theme.Spacing.xl) {
                     // MARK: - Header
-                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                        Text(viewModel.greeting)
-                            .font(Theme.largeTitle)
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                        Text(viewModel.todayDateString)
-                            .font(Theme.body)
-                            .foregroundStyle(.white.opacity(0.9))
-                            .shadow(color: .black.opacity(0.1), radius: 1, y: 1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(viewModel.greeting)
+                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     if viewModel.hasData {
                         // Show banner if using yesterday's data
@@ -39,6 +42,11 @@ struct DashboardView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
 
+                        // Late night hint - show as separate card
+                        if isLateNight && viewModel.lifeIndexScore < 30 {
+                            LateNightHintCard()
+                        }
+
                         // MARK: - LifeIndex Score (top)
                         LifeIndexScoreCard(
                             score: viewModel.lifeIndexScore,
@@ -46,15 +54,14 @@ struct DashboardView: View {
                             explanation: viewModel.scoreExplanation,
                             topContributor: viewModel.topContributor,
                             weakestArea: viewModel.weakestArea,
-                            breakdown: viewModel.scoreBreakdown
+                            breakdown: viewModel.scoreBreakdown,
+                            yesterdayScore: viewModel.yesterdayScore,
+                            onViewYesterday: {
+                                showYesterdayReport = true
+                            }
                         )
 
-                        // MARK: - Score Breakdown (related to score)
-                        if !viewModel.scoreBreakdown.isEmpty {
-                            ScoreBreakdownCard(breakdown: viewModel.scoreBreakdown)
-                        }
-
-                        // MARK: - Score History Sparkline
+                        // MARK: - LifeIndex History Sparkline
                         if !viewModel.weeklyScores.isEmpty {
                             ScoreHistoryCard(
                                 weeklyScores: viewModel.weeklyScores,
@@ -116,11 +123,6 @@ struct DashboardView: View {
                             RecentWorkoutsCard(workouts: viewModel.recentWorkouts)
                         }
 
-                        // MARK: - Weekly Trends
-                        if !viewModel.weeklyData.isEmpty {
-                            WeeklyTrendsSection(data: viewModel.weeklyData)
-                        }
-
                         // MARK: - Mindfulness
                         if let mindful = viewModel.mindfulMinutes {
                             MindfulCard(minutes: mindful, weeklyData: viewModel.weeklyData)
@@ -159,11 +161,455 @@ struct DashboardView: View {
                         .background(.ultraThinMaterial)
                 }
             }
+            .sheet(isPresented: $showFoodLog, onDismiss: {
+                viewModel.loadNutritionData()
+            }) {
+                if let foodLogVM = foodLogViewModel {
+                    FoodLogSheet(viewModel: foodLogVM, isPresented: $showFoodLog)
+                }
+            }
+            .sheet(isPresented: $showYesterdayReport) {
+                YesterdayReportSheet(viewModel: viewModel)
+            }
         }
         .task {
             viewModel.configure(with: healthKitManager)
+
+            // Initialize nutrition objects
+            if nutritionManager == nil {
+                let nm = NutritionManager(healthStore: healthKitManager.healthStore)
+                nutritionManager = nm
+                foodLogViewModel = FoodLogViewModel(nutritionManager: nm)
+            }
+
             await viewModel.loadData()
         }
+    }
+}
+
+// MARK: - Yesterday Report Sheet
+
+struct YesterdayReportSheet: View {
+    @ObservedObject var viewModel: DashboardViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    private var yesterdayDate: Date {
+        Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+    }
+
+    private var yesterdayDateString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter.string(from: yesterdayDate)
+    }
+
+    private var yesterdayData: DailyHealthSummary? {
+        viewModel.weeklyData.first { Calendar.current.isDateInYesterday($0.date) }
+    }
+
+    private var yesterdayBreakdown: [(type: HealthMetricType, score: Double, value: Double)] {
+        guard let data = yesterdayData else { return [] }
+        var breakdown: [(type: HealthMetricType, score: Double, value: Double)] = []
+
+        for (type, value) in data.metrics {
+            guard let target = LifeIndexScoreEngine.targets[type] else { continue }
+            let score = LifeIndexScoreEngine.scoreMetric(value: value, target: target, type: type)
+            breakdown.append((type: type, score: score, value: value))
+        }
+
+        return breakdown.sorted { $0.score > $1.score }
+    }
+
+    /// Get yesterday's insights from stored report or generate fresh
+    private var yesterdayInsights: [HealthInsight] {
+        // First try to get from stored report
+        if let report = viewModel.fetchYesterdayReport(),
+           !report.insights.isEmpty {
+            return viewModel.storedInsightsToHealthInsights(report.insights)
+        }
+        // Otherwise generate fresh from weekly data
+        return viewModel.generateYesterdayInsights()
+    }
+
+    /// Get yesterday's AI summary from stored report
+    private var yesterdayAISummary: (short: String?, detailed: String?) {
+        if let report = viewModel.fetchYesterdayReport() {
+            return (report.aiShortSummary, report.aiDetailedSummary)
+        }
+        return (nil, nil)
+    }
+
+    private func scoreColor(_ score: Int) -> Color {
+        switch score {
+        case 80...100: return .green
+        case 60..<80: return .yellow
+        case 40..<60: return .orange
+        default: return .red
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: Theme.Spacing.xl) {
+                    // Date header
+                    Text(yesterdayDateString)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Theme.secondaryText)
+                        .padding(.top, Theme.Spacing.md)
+
+                    // Score ring
+                    if let score = viewModel.yesterdayScore {
+                        ZStack {
+                            Circle()
+                                .stroke(scoreColor(score).opacity(0.2), lineWidth: 12)
+                                .frame(width: 140, height: 140)
+
+                            Circle()
+                                .trim(from: 0, to: CGFloat(score) / 100.0)
+                                .stroke(scoreColor(score), style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                                .frame(width: 140, height: 140)
+                                .rotationEffect(.degrees(-90))
+
+                            VStack(spacing: 4) {
+                                Text("\(score)")
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundStyle(scoreColor(score))
+
+                                Text(LifeIndexScoreEngine.label(for: score))
+                                    .font(.system(.caption, design: .rounded, weight: .medium))
+                                    .foregroundStyle(Theme.secondaryText)
+                            }
+                        }
+                    } else {
+                        Text("No data available")
+                            .font(.system(.headline, design: .rounded))
+                            .foregroundStyle(Theme.secondaryText)
+                            .padding(.vertical, Theme.Spacing.xl)
+                    }
+
+                    // Insights section
+                    if !yesterdayInsights.isEmpty || yesterdayAISummary.short != nil {
+                        YesterdayInsightsCard(
+                            insights: yesterdayInsights,
+                            aiShortSummary: yesterdayAISummary.short,
+                            aiDetailedSummary: yesterdayAISummary.detailed
+                        )
+                        .padding(.horizontal)
+                    }
+
+                    // Metrics breakdown
+                    if !yesterdayBreakdown.isEmpty {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                            Text("Metrics")
+                                .font(.system(.headline, design: .rounded, weight: .bold))
+                                .padding(.horizontal)
+
+                            ForEach(yesterdayBreakdown, id: \.type) { item in
+                                YesterdayMetricRow(
+                                    type: item.type,
+                                    value: item.value,
+                                    score: item.score
+                                )
+                            }
+                        }
+                    }
+
+                    // Summary stats
+                    if let data = yesterdayData {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                            Text("Summary")
+                                .font(.system(.headline, design: .rounded, weight: .bold))
+                                .padding(.horizontal)
+
+                            HStack(spacing: Theme.Spacing.md) {
+                                if let steps = data.metrics[.steps] {
+                                    SummaryStatBox(
+                                        icon: "figure.walk",
+                                        value: "\(Int(steps).formatted())",
+                                        label: "Steps",
+                                        color: Theme.steps
+                                    )
+                                }
+
+                                if let sleep = data.metrics[.sleepDuration] {
+                                    SummaryStatBox(
+                                        icon: "bed.double.fill",
+                                        value: String(format: "%.1fh", sleep / 60),
+                                        label: "Sleep",
+                                        color: Theme.sleep
+                                    )
+                                }
+
+                                if let calories = data.metrics[.activeCalories] {
+                                    SummaryStatBox(
+                                        icon: "flame.fill",
+                                        value: "\(Int(calories))",
+                                        label: "Calories",
+                                        color: Theme.calories
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                }
+                .padding(.bottom, Theme.Spacing.xl)
+            }
+            .background(Theme.background)
+            .navigationTitle("Yesterday's Report")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .font(.system(.body, design: .rounded, weight: .semibold))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Yesterday Insights Card
+
+private struct YesterdayInsightsCard: View {
+    let insights: [HealthInsight]
+    var aiShortSummary: String? = nil
+    var aiDetailedSummary: String? = nil
+
+    @State private var showingDetailed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: Theme.IconSize.sm, weight: .semibold))
+                    .foregroundStyle(.purple)
+                Text("Insights")
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+            }
+            .padding(.bottom, Theme.Spacing.sm)
+
+            // AI summary at top
+            if let summary = aiShortSummary, !summary.isEmpty {
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    HStack(alignment: .top, spacing: Theme.Spacing.md) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: Theme.IconSize.sm + 1, weight: .semibold))
+                            .foregroundStyle(.purple)
+                            .frame(width: Theme.IconFrame.sm, alignment: .center)
+
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                            if showingDetailed, let detailed = aiDetailedSummary {
+                                Text(detailed)
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundStyle(Theme.primaryText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .lineSpacing(3)
+
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        showingDetailed = false
+                                    }
+                                } label: {
+                                    Text("Show Less")
+                                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(.purple)
+                                }
+                            } else {
+                                Text(summary)
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundStyle(Theme.primaryText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .lineSpacing(2)
+
+                                if aiDetailedSummary != nil {
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            showingDetailed = true
+                                        }
+                                    } label: {
+                                        Text("View More")
+                                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                                            .foregroundStyle(.purple)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, Theme.Spacing.sm)
+
+                if !insights.isEmpty {
+                    Divider()
+                }
+            }
+
+            // Standard insights
+            ForEach(Array(insights.enumerated()), id: \.element.id) { index, insight in
+                HStack(alignment: .top, spacing: Theme.Spacing.md) {
+                    Image(systemName: insight.icon)
+                        .font(.system(size: Theme.IconSize.sm + 1, weight: .semibold))
+                        .foregroundStyle(insight.color)
+                        .frame(width: Theme.IconFrame.sm, alignment: .center)
+
+                    Text(insight.text)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(Theme.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.vertical, Theme.Spacing.sm)
+
+                if index < insights.count - 1 {
+                    Divider()
+                }
+            }
+        }
+        .cardStyle()
+        .animation(.easeInOut(duration: 0.25), value: showingDetailed)
+    }
+}
+
+// MARK: - Yesterday Metric Row
+
+private struct YesterdayMetricRow: View {
+    let type: HealthMetricType
+    let value: Double
+    let score: Double
+
+    private var scoreColor: Color {
+        switch score {
+        case 0.8...1.0: return .green
+        case 0.6..<0.8: return .yellow
+        case 0.4..<0.6: return .orange
+        default: return .red
+        }
+    }
+
+    private var metricColor: Color {
+        switch type {
+        case .steps: return Theme.steps
+        case .heartRate: return Theme.heartRate
+        case .heartRateVariability: return Theme.hrv
+        case .restingHeartRate: return Theme.heartRate
+        case .bloodOxygen: return Theme.bloodOxygen
+        case .activeCalories: return Theme.calories
+        case .sleepDuration: return Theme.sleep
+        case .mindfulMinutes: return Theme.mindfulness
+        case .workoutMinutes: return Theme.activity
+        }
+    }
+
+    private var statusText: String {
+        switch score {
+        case 0.8...1.0: return "Excellent"
+        case 0.6..<0.8: return "Good"
+        case 0.4..<0.6: return "Fair"
+        default: return "Needs work"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(metricColor.opacity(0.15))
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: type.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(metricColor)
+            }
+
+            // Name and value
+            VStack(alignment: .leading, spacing: 2) {
+                Text(type.displayName)
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+
+                Text(HealthDataPoint(type: type, value: value, date: .now).formattedValue)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+            }
+
+            Spacer()
+
+            // Score
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(statusText)
+                    .font(.system(.caption, design: .rounded, weight: .bold))
+                    .foregroundStyle(scoreColor)
+
+                // Progress indicator
+                GeometryReader { geo in
+                    Capsule()
+                        .fill(Color.gray.opacity(0.15))
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(scoreColor)
+                                .frame(width: geo.size.width * score)
+                        }
+                }
+                .frame(width: 50, height: 4)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, Theme.Spacing.sm)
+    }
+}
+
+// MARK: - Summary Stat Box
+
+private struct SummaryStatBox: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundStyle(color)
+
+            Text(value)
+                .font(.system(.headline, design: .rounded, weight: .bold))
+
+            Text(label)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Theme.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Theme.Spacing.md)
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+// MARK: - Late Night Hint Card
+
+private struct LateNightHintCard: View {
+    var body: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "moon.stars.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(Theme.sleep)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("It's Late!")
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(Theme.primaryText)
+
+                Text("Your daily metrics are still building up. Check back tomorrow morning for a complete picture.")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .cardStyle()
     }
 }
 
@@ -194,7 +640,7 @@ struct ScoreHistoryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack {
-                SectionHeader(title: "Score History", icon: "chart.line.uptrend.xyaxis", color: Theme.accentColor)
+                SectionHeader(title: "LifeIndex History", icon: "chart.line.uptrend.xyaxis", color: Theme.accentColor)
 
                 Spacer()
 
@@ -569,139 +1015,6 @@ struct ScoreHistoryDetailSheet: View {
     }
 }
 
-// MARK: - Score Breakdown
-
-struct ScoreBreakdownCard: View {
-    let breakdown: [(type: HealthMetricType, score: Double, value: Double)]
-
-    @State private var expandedMetric: HealthMetricType?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            SectionHeader(title: "Score Breakdown", icon: "chart.pie.fill", color: Theme.accentColor)
-
-            ForEach(breakdown, id: \.type) { item in
-                VStack(spacing: Theme.Spacing.sm) {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: item.type.icon)
-                            .font(.system(size: Theme.IconSize.sm, weight: .semibold))
-                            .foregroundStyle(colorFor(item.type))
-                            .frame(width: Theme.IconFrame.sm)
-
-                        Text(item.type.displayName)
-                            .font(.system(.subheadline, design: .rounded))
-                            .frame(width: 90, alignment: .leading)
-
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(colorFor(item.type).opacity(0.15))
-                                    .frame(height: Theme.progressBarHeight)
-
-                                Capsule()
-                                    .fill(colorFor(item.type))
-                                    .frame(width: geo.size.width * item.score, height: Theme.progressBarHeight)
-                            }
-                        }
-                        .frame(height: Theme.progressBarHeight)
-
-                        Text(HealthDataPoint(type: item.type, value: item.value, date: .now).formattedValue)
-                            .font(.system(.caption, design: .rounded, weight: .semibold))
-                            .foregroundStyle(Theme.secondaryText)
-                            .frame(width: 50, alignment: .trailing)
-                    }
-
-                    // Expanded detail row
-                    if expandedMetric == item.type {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Spacer().frame(width: Theme.IconFrame.sm)
-
-                            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                                if let target = LifeIndexScoreEngine.targets[item.type] {
-                                    HStack(spacing: Theme.Spacing.xs) {
-                                        Image(systemName: "target")
-                                            .font(.system(size: 10))
-                                        Text("Ideal: \(formatTarget(target, type: item.type))")
-                                            .font(.system(.caption2, design: .rounded))
-                                    }
-                                    .foregroundStyle(Theme.secondaryText)
-                                }
-
-                                if let weight = LifeIndexScoreEngine.weights[item.type] {
-                                    HStack(spacing: Theme.Spacing.xs) {
-                                        Image(systemName: "scalemass")
-                                            .font(.system(size: 10))
-                                        Text("Weight: \(Int(weight * 100))% of total score")
-                                            .font(.system(.caption2, design: .rounded))
-                                    }
-                                    .foregroundStyle(Theme.secondaryText)
-                                }
-
-                                HStack(spacing: Theme.Spacing.xs) {
-                                    Circle()
-                                        .fill(scoreStatusColor(item.score))
-                                        .frame(width: 6, height: 6)
-                                    Text("Score: \(Int(item.score * 100))%")
-                                        .font(.system(.caption2, design: .rounded, weight: .medium))
-                                        .foregroundStyle(scoreStatusColor(item.score))
-                                }
-                            }
-
-                            Spacer()
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        if expandedMetric == item.type {
-                            expandedMetric = nil
-                        } else {
-                            expandedMetric = item.type
-                        }
-                    }
-                }
-            }
-        }
-        .cardStyle()
-    }
-
-    private func colorFor(_ type: HealthMetricType) -> Color {
-        switch type {
-        case .steps: return Theme.steps
-        case .heartRate: return Theme.heartRate
-        case .heartRateVariability: return Theme.hrv
-        case .restingHeartRate: return Theme.heartRate
-        case .bloodOxygen: return Theme.bloodOxygen
-        case .activeCalories: return Theme.calories
-        case .sleepDuration: return Theme.sleep
-        case .mindfulMinutes: return Theme.mindfulness
-        case .workoutMinutes: return Theme.activity
-        }
-    }
-
-    private func scoreStatusColor(_ score: Double) -> Color {
-        switch score {
-        case 0.8...1.0: return .green
-        case 0.6..<0.8: return .yellow
-        case 0.4..<0.6: return .orange
-        default: return .red
-        }
-    }
-
-    private func formatTarget(_ range: ClosedRange<Double>, type: HealthMetricType) -> String {
-        switch type {
-        case .bloodOxygen:
-            return "\(Int(range.lowerBound * 100))–\(Int(range.upperBound * 100))%"
-        case .sleepDuration:
-            return "\(Int(range.lowerBound / 60))–\(Int(range.upperBound / 60)) hrs"
-        default:
-            return "\(Int(range.lowerBound))–\(Int(range.upperBound)) \(type.unit)"
-        }
-    }
-}
-
 // MARK: - Activity Card
 
 struct ActivityCard: View {
@@ -1010,93 +1323,165 @@ struct SleepCard: View {
     var weeklyData: [DailyHealthSummary] = []
 
     @State private var showDetail = false
+    @State private var selectedDay: String?
 
     private var hours: Int { Int(minutes) / 60 }
     private var mins: Int { Int(minutes) % 60 }
-    private var quality: String {
-        switch minutes {
-        case 420...540: return "Ideal"
-        case 360..<420: return "Fair"
-        case 540...: return "Oversleep"
-        default: return "Low"
-        }
+
+    // Sleep quality based on duration (percentage of 8hr target)
+    private var qualityPercent: Int {
+        let target = 480.0 // 8 hours
+        return min(100, Int((minutes / target) * 100))
     }
-    private var qualityColor: Color {
-        switch minutes {
-        case 420...540: return .green
-        case 360..<420: return .yellow
-        default: return .orange
-        }
+
+    // Sleep variability - standard deviation of sleep times this week
+    private var variabilityMinutes: Int {
+        let sleepData = weeklyData.compactMap { $0.metrics[.sleepDuration] }
+        guard sleepData.count >= 2 else { return 0 }
+        let mean = sleepData.reduce(0, +) / Double(sleepData.count)
+        let variance = sleepData.reduce(0) { $0 + pow($1 - mean, 2) } / Double(sleepData.count)
+        return Int(sqrt(variance))
+    }
+
+    // Sleep regularity - how consistent sleep patterns are (inverse of variability as %)
+    private var regularityPercent: Int {
+        let maxVariability = 120.0 // 2 hours considered max variability
+        let regularity = max(0, 100 - Int((Double(variabilityMinutes) / maxVariability) * 100))
+        return regularity
+    }
+
+    private func statusIndicator(isGood: Bool) -> some View {
+        Image(systemName: isGood ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+            .font(.system(size: 14))
+            .foregroundStyle(isGood ? .green : .orange)
+    }
+
+    private func summaryFor(day: String?) -> DailyHealthSummary? {
+        guard let day else { return nil }
+        return weeklyData.first { $0.date.shortDayName == day }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            SectionHeader(title: "Sleep", icon: "bed.double.fill", color: Theme.sleep)
+            // Header
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "moon.zzz.fill")
+                    .font(.system(size: Theme.IconSize.sm, weight: .semibold))
+                    .foregroundStyle(Theme.sleep)
+                Text("Sleep")
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+            }
 
-            HStack {
+            // Weekly sleep chart
+            if !weeklyData.isEmpty {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.xs) {
-                        Text("\(hours)")
-                            .font(.system(size: 40, weight: .bold, design: .rounded))
-                        Text("hr")
-                            .font(.system(.body, design: .rounded))
-                            .foregroundStyle(Theme.secondaryText)
-                        Text("\(mins)")
-                            .font(.system(size: 40, weight: .bold, design: .rounded))
-                        Text("min")
-                            .font(.system(.body, design: .rounded))
-                            .foregroundStyle(Theme.secondaryText)
+                    // Selected day info
+                    if let day = selectedDay, let summary = summaryFor(day: day),
+                       let sleep = summary.metrics[.sleepDuration] {
+                        HStack {
+                            Text(day)
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Theme.secondaryText)
+                            Text("\(Int(sleep) / 60)h \(Int(sleep) % 60)m")
+                                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                .foregroundStyle(Theme.sleep)
+                        }
+                        .transition(.opacity)
                     }
 
-                    Text(quality)
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(qualityColor)
-                }
+                    Chart(weeklyData) { summary in
+                        let dayName = summary.date.shortDayName
+                        if let sleep = summary.metrics[.sleepDuration] {
+                            BarMark(
+                                x: .value("Day", dayName),
+                                y: .value("Hours", sleep / 60.0)
+                            )
+                            .foregroundStyle(selectedDay == dayName ? Theme.sleep : Theme.sleep.opacity(0.7))
+                            .cornerRadius(4)
+                        } else {
+                            BarMark(
+                                x: .value("Day", dayName),
+                                y: .value("Hours", 0.3)
+                            )
+                            .foregroundStyle(Color.gray.opacity(0.2))
+                            .cornerRadius(4)
+                        }
 
-                Spacer()
-
-                // Sleep gauge
-                ZStack {
-                    Circle()
-                        .stroke(Theme.sleep.opacity(0.2), lineWidth: 10)
-                        .frame(width: 70, height: 70)
-                    Circle()
-                        .trim(from: 0, to: min(1.0, minutes / 540))
-                        .stroke(Theme.sleep, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                        .frame(width: 70, height: 70)
-                        .rotationEffect(.degrees(-90))
-                    Image(systemName: "moon.zzz.fill")
-                        .foregroundStyle(Theme.sleep)
+                        if selectedDay == dayName {
+                            RuleMark(x: .value("Day", dayName))
+                                .foregroundStyle(Theme.secondaryText.opacity(0.3))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                        }
+                    }
+                    .frame(height: 100)
+                    .chartOverlay { proxy in
+                        GeometryReader { geo in
+                            Rectangle()
+                                .fill(Color.clear)
+                                .contentShape(Rectangle())
+                                .onTapGesture { location in
+                                    guard let plotFrame = proxy.plotFrame else { return }
+                                    let origin = geo[plotFrame].origin
+                                    let x = location.x - origin.x
+                                    if let tappedDay: String = proxy.value(atX: x) {
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            selectedDay = selectedDay == tappedDay ? nil : tappedDay
+                                        }
+                                    }
+                                }
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading) { value in
+                            AxisValueLabel {
+                                if let v = value.as(Double.self) {
+                                    Text("\(Int(v))h")
+                                        .font(.system(.caption2, design: .rounded))
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
-            // Sleep target bar
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Theme.sleep.opacity(0.15)).frame(height: Theme.progressBarHeight - 2)
-                        Capsule().fill(Theme.sleep).frame(width: geo.size.width * min(1.0, minutes / 540), height: Theme.progressBarHeight - 2)
-                    }
-                }
-                .frame(height: Theme.progressBarHeight - 2)
+            // 2x2 Stats Grid
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.sm) {
+                // Time Asleep
+                SleepStatBox(
+                    title: "Time Asleep",
+                    value: "\(hours)hrs \(mins)min",
+                    isGood: minutes >= 420 // 7+ hours is good
+                )
 
-                HStack {
-                    Text("0h")
-                    Spacer()
-                    Text("Target: 7-9h")
-                    Spacer()
-                    Text("9h+")
-                }
-                .font(.system(.caption2, design: .rounded))
-                .foregroundStyle(Theme.secondaryText)
+                // Sleep Quality
+                SleepStatBox(
+                    title: "Sleep Quality",
+                    value: "\(qualityPercent)%",
+                    isGood: qualityPercent >= 70
+                )
+
+                // Variability
+                SleepStatBox(
+                    title: "Variability",
+                    value: "\(variabilityMinutes)min",
+                    isGood: variabilityMinutes <= 30 // Less than 30min variability is good
+                )
+
+                // Regularity
+                SleepStatBox(
+                    title: "Regularity",
+                    value: "\(regularityPercent)%",
+                    isGood: regularityPercent >= 70
+                )
             }
 
+            // View Sleep Details button
             if !weeklyData.isEmpty {
                 Button {
                     showDetail = true
                 } label: {
                     HStack(spacing: Theme.Spacing.xs) {
-                        Image(systemName: "bed.double.fill")
+                        Image(systemName: "moon.zzz.fill")
                             .font(.system(size: 11))
                         Text("View Sleep Details")
                             .font(.system(.caption, design: .rounded, weight: .medium))
@@ -1122,6 +1507,36 @@ struct SleepCard: View {
                 weeklyData: weeklyData
             )
         }
+    }
+}
+
+// MARK: - Sleep Stat Box
+
+private struct SleepStatBox: View {
+    let title: String
+    let value: String
+    let isGood: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text(title)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Theme.secondaryText)
+
+            HStack(spacing: Theme.Spacing.xs) {
+                Image(systemName: isGood ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(isGood ? .green : .orange)
+
+                Text(value)
+                    .font(.system(.title3, design: .rounded, weight: .bold))
+                    .foregroundStyle(Theme.primaryText)
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.tertiaryBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -1221,11 +1636,11 @@ struct InsightsSection: View {
     @State private var showingDetailed = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            SectionHeader(title: "Insights", icon: "lightbulb.fill", color: .yellow)
+        VStack(alignment: .leading, spacing: 0) {
+            SectionHeader(title: "Insights", icon: "lightbulb.fill", color: .purple)
+                .padding(.bottom, Theme.Spacing.sm)
 
-            VStack(spacing: 0) {
-                // AI summary at top
+            // AI summary at top
                 if let summary = aiShortSummary, !summary.isEmpty {
                     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         HStack(alignment: .top, spacing: Theme.Spacing.md) {
@@ -1329,9 +1744,8 @@ struct InsightsSection: View {
                 }
             }
             .cardStyle()
-        }
-        .animation(.easeInOut(duration: 0.25), value: showingDetailed)
-        .animation(.easeInOut(duration: 0.25), value: aiDetailedSummary != nil)
+            .animation(.easeInOut(duration: 0.25), value: showingDetailed)
+            .animation(.easeInOut(duration: 0.25), value: aiDetailedSummary != nil)
     }
 }
 

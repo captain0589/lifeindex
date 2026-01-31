@@ -27,6 +27,7 @@ struct WellnessView: View {
                 .padding(.bottom, 20)
             }
             .navigationTitle("Wellness")
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showMoodLogger) {
                 MoodLoggerSheet(
                     selectedMood: $todayMood,

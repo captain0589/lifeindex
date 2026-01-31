@@ -10,16 +10,16 @@ struct MainTabView: View {
                 DashboardView(viewModel: dashboardViewModel)
             }
 
-            Tab("Fitness", systemImage: "flame.fill", value: 1) {
+            Tab("Calories", systemImage: "fork.knife", value: 1) {
+                FoodView()
+            }
+
+            Tab("Fitness", systemImage: "figure.run", value: 2) {
                 FitnessView()
             }
 
-            Tab("Wellness", systemImage: "heart.fill", value: 2) {
+            Tab("Wellness", systemImage: "heart.fill", value: 3) {
                 WellnessView()
-            }
-
-            Tab("Reports", systemImage: "chart.bar.fill", value: 3) {
-                ReportsView()
             }
 
             Tab("Settings", systemImage: "gearshape.fill", value: 4) {

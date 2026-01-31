@@ -7,6 +7,8 @@ struct LifeIndexScoreCard: View {
     let topContributor: ScoreContributor?
     let weakestArea: ScoreContributor?
     var breakdown: [(type: HealthMetricType, score: Double, value: Double)] = []
+    var yesterdayScore: Int? = nil
+    var onViewYesterday: (() -> Void)? = nil
 
     @State private var showScoreSheet = false
 
@@ -82,24 +84,49 @@ struct LifeIndexScoreCard: View {
                 }
             }
 
-            Button {
-                showScoreSheet = true
-            } label: {
-                HStack(spacing: Theme.Spacing.xs) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 11))
-                    Text("View Score Breakdown")
-                        .font(.system(.caption, design: .rounded, weight: .medium))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
+            // Action buttons
+            VStack(spacing: Theme.Spacing.sm) {
+                Button {
+                    showScoreSheet = true
+                } label: {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.system(size: 11))
+                        Text("View Score Details")
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.accentColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .background(Theme.accentColor.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Spacing.sm))
                 }
-                .foregroundStyle(Theme.accentColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Theme.Spacing.sm)
-                .background(Theme.accentColor.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Spacing.sm))
+                .buttonStyle(.plain)
+
+                // View Yesterday button (especially useful late at night)
+                if let onViewYesterday = onViewYesterday, let yesterdayScore = yesterdayScore {
+                    Button {
+                        onViewYesterday()
+                    } label: {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 11))
+                            Text("View Yesterday's Report (\(yesterdayScore))")
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                        }
+                        .foregroundStyle(Theme.sleep)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Theme.Spacing.sm)
+                        .background(Theme.sleep.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Spacing.sm))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .cardStyle()
@@ -123,132 +150,52 @@ struct ScoreExplainerSheet: View {
     let breakdown: [(type: HealthMetricType, score: Double, value: Double)]
 
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedTab = 0
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
-                    // Score header
-                    VStack(spacing: Theme.Spacing.sm) {
-                        Text("\(score)")
-                            .font(.system(size: 64, weight: .bold, design: .rounded))
-                            .foregroundStyle(scoreColor)
-                        Text(label)
-                            .font(.system(.title3, design: .rounded, weight: .medium))
-                            .foregroundStyle(Theme.secondaryText)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.lg)
+                VStack(spacing: Theme.Spacing.xl) {
+                    // Score header with ring
+                    ZStack {
+                        Circle()
+                            .stroke(scoreColor.opacity(0.2), lineWidth: 10)
+                            .frame(width: 120, height: 120)
 
-                    // Your metrics today (most relevant — show first)
-                    if !breakdown.isEmpty {
-                        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                            Label("Today's Metrics", systemImage: "chart.bar.fill")
-                                .font(.system(.headline, design: .rounded, weight: .semibold))
+                        Circle()
+                            .trim(from: 0, to: CGFloat(score) / 100.0)
+                            .stroke(scoreColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                            .frame(width: 120, height: 120)
+                            .rotationEffect(.degrees(-90))
 
-                            ForEach(breakdown.sorted(by: { $0.score > $1.score }), id: \.type) { item in
-                                HStack(spacing: Theme.Spacing.sm) {
-                                    Image(systemName: item.type.icon)
-                                        .font(.system(size: Theme.IconSize.sm, weight: .semibold))
-                                        .foregroundStyle(metricColor(item.type))
-                                        .frame(width: Theme.IconFrame.sm)
-
-                                    Text(item.type.displayName)
-                                        .font(.system(.subheadline, design: .rounded))
-
-                                    Spacer()
-
-                                    Text(HealthDataPoint(type: item.type, value: item.value, date: .now).formattedValue)
-                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-
-                                    // Score indicator
-                                    Circle()
-                                        .fill(scoreIndicatorColor(item.score))
-                                        .frame(width: 10, height: 10)
-
-                                    Text("\(Int(item.score * 100))%")
-                                        .font(.system(.caption, design: .rounded, weight: .bold))
-                                        .foregroundStyle(scoreIndicatorColor(item.score))
-                                        .frame(width: 36, alignment: .trailing)
-                                }
-                            }
+                        VStack(spacing: 2) {
+                            Text("\(score)")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
+                                .foregroundStyle(scoreColor)
+                            Text(label)
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                                .foregroundStyle(Theme.secondaryText)
                         }
                     }
+                    .padding(.top, Theme.Spacing.md)
 
-                    // Weights breakdown
-                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                        Label("Metric Weights", systemImage: "chart.pie.fill")
-                            .font(.system(.headline, design: .rounded, weight: .semibold))
-
-                        ForEach(LifeIndexScoreEngine.weights.sorted(by: { $0.value > $1.value }), id: \.key) { type, weight in
-                            HStack(spacing: Theme.Spacing.sm) {
-                                Image(systemName: type.icon)
-                                    .font(.system(size: Theme.IconSize.sm, weight: .semibold))
-                                    .foregroundStyle(metricColor(type))
-                                    .frame(width: Theme.IconFrame.sm)
-
-                                Text(type.displayName)
-                                    .font(.system(.subheadline, design: .rounded))
-
-                                Spacer()
-
-                                Text("\(Int(weight * 100))%")
-                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                                    .foregroundStyle(metricColor(type))
-                            }
-                        }
+                    // Tab picker
+                    Picker("View", selection: $selectedTab) {
+                        Text("Your Metrics").tag(0)
+                        Text("How It Works").tag(1)
                     }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
 
-                    // Ideal ranges
-                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                        Label("Ideal Ranges", systemImage: "target")
-                            .font(.system(.headline, design: .rounded, weight: .semibold))
-
-                        ForEach(Array(LifeIndexScoreEngine.targets.keys.sorted(by: { $0.rawValue < $1.rawValue })), id: \.self) { type in
-                            if let target = LifeIndexScoreEngine.targets[type] {
-                                HStack(spacing: Theme.Spacing.sm) {
-                                    Image(systemName: type.icon)
-                                        .font(.system(size: Theme.IconSize.sm, weight: .semibold))
-                                        .foregroundStyle(metricColor(type))
-                                        .frame(width: Theme.IconFrame.sm)
-
-                                    Text(type.displayName)
-                                        .font(.system(.subheadline, design: .rounded))
-
-                                    Spacer()
-
-                                    Text(formatRange(target, type: type))
-                                        .font(.system(.caption, design: .rounded, weight: .medium))
-                                        .foregroundStyle(Theme.secondaryText)
-                                }
-                            }
-                        }
-                    }
-
-                    // How it works
-                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                        Label("How Your Score Works", systemImage: "gearshape.2.fill")
-                            .font(.system(.headline, design: .rounded, weight: .semibold))
-
-                        Text("Your LifeIndex score is a weighted average of all your health metrics. Each metric is compared against an ideal range, and its score is weighted by importance.")
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(Theme.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    // Time awareness note
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        Label("Time-Aware Scoring", systemImage: "clock.fill")
-                            .font(.system(.headline, design: .rounded, weight: .semibold))
-
-                        Text("Cumulative metrics (steps, calories, workouts, mindfulness) are scaled by time of day. Early in the morning, lower step counts won't penalize your score — targets adjust as the day progresses.")
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(Theme.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
+                    if selectedTab == 0 {
+                        metricsBreakdownView
+                    } else {
+                        howItWorksView
                     }
                 }
-                .padding()
+                .padding(.bottom, Theme.Spacing.xl)
             }
+            .background(Theme.background)
             .navigationTitle("Score Breakdown")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -258,6 +205,124 @@ struct ScoreExplainerSheet: View {
                 }
             }
         }
+    }
+
+    // MARK: - Metrics Breakdown View
+
+    private var metricsBreakdownView: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            if !breakdown.isEmpty {
+                ForEach(breakdown.sorted(by: { $0.score > $1.score }), id: \.type) { item in
+                    MetricScoreRow(
+                        type: item.type,
+                        value: item.value,
+                        score: item.score,
+                        target: LifeIndexScoreEngine.targets[item.type]
+                    )
+                }
+            } else {
+                Text("No health data available yet.")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, Theme.Spacing.xl)
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - How It Works View
+
+    private var howItWorksView: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+            // Explanation
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Label("How Scoring Works", systemImage: "sparkles")
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(Theme.accentColor)
+
+                Text("Your LifeIndex compares each health metric against an ideal range, then combines them based on importance to your overall wellness.")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding()
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            // Importance levels
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                Label("Metric Importance", systemImage: "chart.pie.fill")
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+
+                Text("Some metrics matter more for overall health:")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+
+                ForEach(LifeIndexScoreEngine.weights.sorted(by: { $0.value > $1.value }), id: \.key) { type, weight in
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: type.icon)
+                            .font(.system(size: Theme.IconSize.sm, weight: .semibold))
+                            .foregroundStyle(metricColor(type))
+                            .frame(width: Theme.IconFrame.sm)
+
+                        Text(type.displayName)
+                            .font(.system(.subheadline, design: .rounded))
+
+                        Spacer()
+
+                        // Visual weight indicator (dots)
+                        HStack(spacing: 3) {
+                            ForEach(0..<5) { i in
+                                Circle()
+                                    .fill(i < importanceLevel(weight) ? metricColor(type) : Color.gray.opacity(0.2))
+                                    .frame(width: 8, height: 8)
+                            }
+                        }
+
+                        Text(importanceLabel(weight))
+                            .font(.system(.caption2, design: .rounded, weight: .medium))
+                            .foregroundStyle(Theme.secondaryText)
+                            .frame(width: 50, alignment: .trailing)
+                    }
+                }
+            }
+            .padding()
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            // Time awareness
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Label("Smart Time Adjustment", systemImage: "clock.fill")
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(Theme.sleep)
+
+                Text("Activity metrics (steps, calories, exercise) scale throughout the day. Your morning score won't suffer because you haven't hit your daily step goal yet.")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding()
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            // Score levels
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                Label("Score Levels", systemImage: "gauge.with.dots.needle.bottom.50percent")
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+
+                VStack(spacing: Theme.Spacing.sm) {
+                    ScoreLevelRow(range: "80-100", label: "Excellent", color: .green, description: "You're crushing it!")
+                    ScoreLevelRow(range: "60-79", label: "Good", color: .yellow, description: "Solid performance")
+                    ScoreLevelRow(range: "40-59", label: "Fair", color: .orange, description: "Room to improve")
+                    ScoreLevelRow(range: "0-39", label: "Needs Work", color: .red, description: "Focus on basics")
+                }
+            }
+            .padding()
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .padding(.horizontal)
     }
 
     private func metricColor(_ type: HealthMetricType) -> Color {
@@ -274,7 +339,65 @@ struct ScoreExplainerSheet: View {
         }
     }
 
-    private func scoreIndicatorColor(_ score: Double) -> Color {
+    private func importanceLevel(_ weight: Double) -> Int {
+        switch weight {
+        case 0.20...: return 5
+        case 0.15..<0.20: return 4
+        case 0.10..<0.15: return 3
+        case 0.05..<0.10: return 2
+        default: return 1
+        }
+    }
+
+    private func importanceLabel(_ weight: Double) -> String {
+        switch weight {
+        case 0.20...: return "High"
+        case 0.10..<0.20: return "Medium"
+        default: return "Low"
+        }
+    }
+}
+
+// MARK: - Score Level Row
+
+private struct ScoreLevelRow: View {
+    let range: String
+    let label: String
+    let color: Color
+    let description: String
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Circle()
+                .fill(color)
+                .frame(width: 10, height: 10)
+
+            Text(range)
+                .font(.system(.caption, design: .rounded, weight: .bold))
+                .foregroundStyle(color)
+                .frame(width: 50, alignment: .leading)
+
+            Text(label)
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
+
+            Spacer()
+
+            Text(description)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(Theme.secondaryText)
+        }
+    }
+}
+
+// MARK: - Metric Score Row
+
+private struct MetricScoreRow: View {
+    let type: HealthMetricType
+    let value: Double
+    let score: Double
+    let target: ClosedRange<Double>?
+
+    private var scoreColor: Color {
         switch score {
         case 0.8...1.0: return .green
         case 0.6..<0.8: return .yellow
@@ -283,7 +406,99 @@ struct ScoreExplainerSheet: View {
         }
     }
 
-    private func formatRange(_ range: ClosedRange<Double>, type: HealthMetricType) -> String {
+    private var metricColor: Color {
+        switch type {
+        case .steps: return Theme.steps
+        case .heartRate: return Theme.heartRate
+        case .heartRateVariability: return Theme.hrv
+        case .restingHeartRate: return Theme.heartRate
+        case .bloodOxygen: return Theme.bloodOxygen
+        case .activeCalories: return Theme.calories
+        case .sleepDuration: return Theme.sleep
+        case .mindfulMinutes: return Theme.mindfulness
+        case .workoutMinutes: return Theme.activity
+        }
+    }
+
+    private var statusText: String {
+        switch score {
+        case 0.8...1.0: return "Excellent"
+        case 0.6..<0.8: return "Good"
+        case 0.4..<0.6: return "Fair"
+        default: return "Needs work"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            HStack(spacing: Theme.Spacing.md) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(metricColor.opacity(0.15))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: type.icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(metricColor)
+                }
+
+                // Name and value
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(type.displayName)
+                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+
+                    Text(HealthDataPoint(type: type, value: value, date: .now).formattedValue)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Theme.secondaryText)
+                }
+
+                Spacer()
+
+                // Score badge
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(statusText)
+                        .font(.system(.caption, design: .rounded, weight: .bold))
+                        .foregroundStyle(scoreColor)
+
+                    Text("\(Int(score * 100))%")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Theme.secondaryText)
+                }
+            }
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(height: 6)
+
+                    Capsule()
+                        .fill(scoreColor)
+                        .frame(width: geo.size.width * score, height: 6)
+                }
+            }
+            .frame(height: 6)
+
+            // Target hint
+            if let target = target {
+                HStack {
+                    Image(systemName: "target")
+                        .font(.system(size: 10))
+                    Text("Target: \(formatTarget(target))")
+                        .font(.system(.caption2, design: .rounded))
+                }
+                .foregroundStyle(Theme.secondaryText.opacity(0.8))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding()
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func formatTarget(_ range: ClosedRange<Double>) -> String {
         switch type {
         case .bloodOxygen:
             return "\(Int(range.lowerBound * 100))–\(Int(range.upperBound * 100))%"

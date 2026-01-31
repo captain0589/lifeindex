@@ -6,8 +6,13 @@ struct SectionHeader: View {
     let color: Color
 
     var body: some View {
-        Label(title, systemImage: icon)
-            .font(Theme.title)
-            .foregroundStyle(color)
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: Theme.IconSize.md, weight: .semibold))
+                .foregroundStyle(color)
+            Text(title)
+                .font(Theme.title)
+                .foregroundStyle(color)
+        }
     }
 }

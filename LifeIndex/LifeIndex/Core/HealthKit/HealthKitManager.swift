@@ -26,10 +26,14 @@ class HealthKitManager: ObservableObject {
             HKQuantityType(.oxygenSaturation),
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.distanceWalkingRunning),
+            HKQuantityType(.height),
+            HKQuantityType(.bodyMass),
             HKCategoryType(.sleepAnalysis),
             HKCategoryType(.mindfulSession),
             HKWorkoutType.workoutType(),
-            HKObjectType.activitySummaryType()
+            HKObjectType.activitySummaryType(),
+            HKCharacteristicType(.biologicalSex),
+            HKCharacteristicType(.dateOfBirth)
         ]
         return types
     }
@@ -43,12 +47,173 @@ class HealthKitManager: ObservableObject {
         isAuthorized = true
     }
 
+    // MARK: - User Characteristics
+
+    struct UserCharacteristics {
+        var age: Int?
+        var isMale: Bool?
+        var heightCm: Double?
+        var weightKg: Double?
+    }
+
+    func fetchUserCharacteristics() async -> UserCharacteristics {
+        var result = UserCharacteristics()
+
+        debugLog("[LifeIndex] Fetching user characteristics from HealthKit...")
+
+        // Biological sex
+        do {
+            let sexObject = try healthStore.biologicalSex()
+            let sex = sexObject.biologicalSex
+            debugLog("[LifeIndex] biologicalSex raw value: \(sex.rawValue) (.notSet=0, .female=1, .male=2, .other=3)")
+            switch sex {
+            case .male: result.isMale = true
+            case .female: result.isMale = false
+            default: debugLog("[LifeIndex] biologicalSex is .notSet or .other — skipping")
+            }
+        } catch {
+            debugLog("[LifeIndex] ERROR reading biological sex: \(error.localizedDescription)")
+        }
+
+        // Date of birth → age
+        do {
+            let dob = try healthStore.dateOfBirthComponents()
+            debugLog("[LifeIndex] dateOfBirthComponents: year=\(dob.year ?? -1), month=\(dob.month ?? -1), day=\(dob.day ?? -1)")
+            debugLog("[LifeIndex] Raw DateComponents from HealthKit: \(dob)")
+
+            if let year = dob.year, year > 0 {
+                // IMPORTANT: Use Gregorian calendar explicitly!
+                // HealthKit returns Gregorian years, but Calendar.current may be Buddhist (Thailand)
+                // which would interpret 1994 as Buddhist year 1994 = Gregorian 1451
+                var gregorianCalendar = Calendar(identifier: .gregorian)
+                gregorianCalendar.timeZone = TimeZone.current
+
+                debugLog("[LifeIndex] Using calendar: \(gregorianCalendar.identifier) (current system: \(Calendar.current.identifier))")
+
+                // Build clean DateComponents
+                var birthComponents = DateComponents()
+                birthComponents.year = year
+                birthComponents.month = dob.month ?? 1
+                birthComponents.day = dob.day ?? 1
+                debugLog("[LifeIndex] Clean birthComponents: year=\(birthComponents.year ?? -1), month=\(birthComponents.month ?? -1), day=\(birthComponents.day ?? -1)")
+
+                if let birthDate = gregorianCalendar.date(from: birthComponents) {
+                    debugLog("[LifeIndex] birthDate created: \(birthDate)")
+                    let ageComponents = gregorianCalendar.dateComponents([.year], from: birthDate, to: Date())
+                    debugLog("[LifeIndex] ageComponents.year: \(ageComponents.year ?? -999)")
+                    if let age = ageComponents.year, age > 0 && age < 150 {
+                        result.age = age
+                        debugLog("[LifeIndex] ✓ Calculated age: \(age)")
+                    } else {
+                        debugLog("[LifeIndex] ✗ Age out of range or nil: \(ageComponents.year ?? -999)")
+                    }
+                } else {
+                    debugLog("[LifeIndex] ✗ calendar.date(from: birthComponents) returned nil - using fallback")
+                    let currentYear = gregorianCalendar.component(.year, from: Date())
+                    let age = currentYear - year
+                    debugLog("[LifeIndex] Fallback: currentYear=\(currentYear), birthYear=\(year), age=\(age)")
+                    if age > 0 && age < 150 {
+                        result.age = age
+                        debugLog("[LifeIndex] ✓ Calculated age (year only fallback): \(age)")
+                    } else {
+                        debugLog("[LifeIndex] ✗ Fallback age out of range: \(age)")
+                    }
+                }
+            } else {
+                debugLog("[LifeIndex] Date of birth year is nil or 0 — not set in Health app")
+            }
+        } catch {
+            debugLog("[LifeIndex] ERROR reading date of birth: \(error.localizedDescription)")
+        }
+
+        // Height (most recent sample)
+        debugLog("[LifeIndex] Fetching height sample...")
+        // Use Gregorian calendar for date calculations to avoid Buddhist calendar issues
+        var gregorianCal = Calendar(identifier: .gregorian)
+        gregorianCal.timeZone = TimeZone.current
+        let heightStartDate = gregorianCal.date(byAdding: .year, value: -10, to: Date())!
+        let heightEndDate = Date()
+        debugLog("[LifeIndex] Height query range: \(heightStartDate) → \(heightEndDate)")
+
+        // First, let's count how many height samples exist
+        let heightSampleCount = await Self.countSamplesForTypeOffMain(
+            healthStore: healthStore,
+            type: HKQuantityType(.height),
+            start: heightStartDate,
+            end: heightEndDate
+        )
+        debugLog("[LifeIndex] Height samples found in range: \(heightSampleCount)")
+
+        // Also try fetching ALL height samples (no date filter) to see if any exist
+        let allHeightCount = await Self.countAllSamplesForTypeOffMain(
+            healthStore: healthStore,
+            type: HKQuantityType(.height)
+        )
+        debugLog("[LifeIndex] Total height samples in HealthKit (all time): \(allHeightCount)")
+
+        if let height = await Self.fetchLatestSampleOffMain(
+            healthStore: healthStore,
+            type: .height,
+            unit: .meterUnit(with: .centi),
+            start: heightStartDate,
+            end: heightEndDate
+        ) {
+            result.heightCm = height
+            debugLog("[LifeIndex] ✓ Height: \(height) cm")
+        } else {
+            debugLog("[LifeIndex] ✗ No height sample found in HealthKit")
+            debugLog("[LifeIndex]   Possible reasons: 1) No height data entered, 2) Permission not granted for height, 3) Data not synced yet")
+        }
+
+        // Weight (most recent sample)
+        debugLog("[LifeIndex] Fetching weight sample...")
+        let weightStartDate = gregorianCal.date(byAdding: .year, value: -5, to: Date())!
+        let weightEndDate = Date()
+        debugLog("[LifeIndex] Weight query range: \(weightStartDate) → \(weightEndDate)")
+
+        let weightSampleCount = await Self.countSamplesForTypeOffMain(
+            healthStore: healthStore,
+            type: HKQuantityType(.bodyMass),
+            start: weightStartDate,
+            end: weightEndDate
+        )
+        debugLog("[LifeIndex] Weight samples found in range: \(weightSampleCount)")
+
+        let allWeightCount = await Self.countAllSamplesForTypeOffMain(
+            healthStore: healthStore,
+            type: HKQuantityType(.bodyMass)
+        )
+        debugLog("[LifeIndex] Total weight samples in HealthKit (all time): \(allWeightCount)")
+
+        if let weight = await Self.fetchLatestSampleOffMain(
+            healthStore: healthStore,
+            type: .bodyMass,
+            unit: .gramUnit(with: .kilo),
+            start: weightStartDate,
+            end: weightEndDate
+        ) {
+            result.weightKg = weight
+            debugLog("[LifeIndex] ✓ Weight: \(weight) kg")
+        } else {
+            debugLog("[LifeIndex] ✗ No weight sample found in HealthKit")
+            debugLog("[LifeIndex]   Possible reasons: 1) No weight data entered, 2) Permission not granted for weight, 3) Data not synced yet")
+        }
+
+        debugLog("[LifeIndex] Final characteristics: age=\(result.age ?? -1), male=\(result.isMale.map(String.init) ?? "nil"), height=\(result.heightCm ?? -1)cm, weight=\(result.weightKg ?? -1)kg")
+        return result
+    }
+
     // MARK: - Fetch Today's Data
 
     func fetchTodaySummary() async {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
+        debugLog("[LifeIndex] FETCHING TODAY'S HEALTHKIT DATA")
+        debugLog("[LifeIndex] Date range: \(startOfDay) → \(endOfDay)")
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
 
         var metrics: [HealthMetricType: Double] = [:]
 
@@ -68,6 +233,20 @@ class HealthKitManager: ObservableObject {
 
         let r = await (steps, calories, heartRate, hrv, restingHR, bloodOxygen, sleep, mindful, workoutMins)
 
+        // Log raw API responses
+        debugLog("[LifeIndex] ───────────────────────────────────────────────────────────")
+        debugLog("[LifeIndex] RAW HEALTHKIT API RESPONSES:")
+        debugLog("[LifeIndex]   Steps (sum):           \(r.0.map { String(format: "%.0f", $0) } ?? "nil")")
+        debugLog("[LifeIndex]   Active Calories (sum): \(r.1.map { String(format: "%.1f", $0) } ?? "nil") kcal")
+        debugLog("[LifeIndex]   Heart Rate (avg):      \(r.2.map { String(format: "%.1f", $0) } ?? "nil") bpm")
+        debugLog("[LifeIndex]   HRV (latest):          \(r.3.map { String(format: "%.1f", $0) } ?? "nil") ms")
+        debugLog("[LifeIndex]   Resting HR (latest):   \(r.4.map { String(format: "%.1f", $0) } ?? "nil") bpm")
+        debugLog("[LifeIndex]   Blood O2 (latest):     \(r.5.map { String(format: "%.1f%%", $0 * 100) } ?? "nil")")
+        debugLog("[LifeIndex]   Sleep (total):         \(r.6.map { String(format: "%.0f", $0) } ?? "nil") min")
+        debugLog("[LifeIndex]   Mindful (total):       \(r.7.map { String(format: "%.1f", $0) } ?? "nil") min")
+        debugLog("[LifeIndex]   Workout (total):       \(r.8.map { String(format: "%.1f", $0) } ?? "nil") min")
+        debugLog("[LifeIndex] ───────────────────────────────────────────────────────────")
+
         if let v = r.0 { metrics[.steps] = v }
         if let v = r.1 { metrics[.activeCalories] = v }
         if let v = r.2 { metrics[.heartRate] = v }
@@ -80,14 +259,18 @@ class HealthKitManager: ObservableObject {
 
         // Fallback: derive some metrics from today's workouts if not found via standard queries
         if metrics[.activeCalories] == nil || metrics[.heartRate] == nil {
+            debugLog("[LifeIndex] Using workout fallback for missing metrics...")
             let workoutFallback = await Self.fetchWorkoutDerivedMetrics(healthStore: healthStore, start: startOfDay, end: endOfDay)
+            debugLog("[LifeIndex]   Workout-derived calories: \(workoutFallback.calories.map { String(format: "%.1f", $0) } ?? "nil")")
             if metrics[.activeCalories] == nil, let cal = workoutFallback.calories {
                 metrics[.activeCalories] = cal
             }
             // Don't override HR from workout — it's exercise HR, not resting/average
         }
 
-        print("[LifeIndex] Today's metrics: \(metrics.mapValues { String(format: "%.1f", $0) })")
+        debugLog("[LifeIndex] ───────────────────────────────────────────────────────────")
+        debugLog("[LifeIndex] FINAL METRICS MAP: \(metrics.mapValues { String(format: "%.1f", $0) })")
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
         todaySummary = DailyHealthSummary(date: .now, metrics: metrics)
     }
 
@@ -126,7 +309,7 @@ class HealthKitManager: ObservableObject {
         }
 
         weeklyData = dailySummaries
-        print("[LifeIndex] Weekly data: \(weeklyData.map { "\($0.date.shortDayName): \($0.metrics.count) metrics" })")
+        debugLog("[LifeIndex] Weekly data: \(weeklyData.map { "\($0.date.shortDayName): \($0.metrics.count) metrics" })")
     }
 
     // MARK: - Fetch Workouts
@@ -168,15 +351,19 @@ class HealthKitManager: ObservableObject {
                     heartRateAvg: nil
                 )
             }
-            print("[LifeIndex] Fetched \(recentWorkouts.count) workouts")
+            debugLog("[LifeIndex] Fetched \(recentWorkouts.count) workouts")
         } catch {
-            print("[LifeIndex] Error fetching workouts: \(error)")
+            debugLog("[LifeIndex] Error fetching workouts: \(error)")
         }
     }
 
     // MARK: - Debug: Log Available Data Sources
 
     func logAvailableSources() async {
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
+        debugLog("[LifeIndex] SAMPLE COUNTS (last 7 days):")
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
+
         let typesToCheck: [(String, HKSampleType)] = [
             ("Steps", HKQuantityType(.stepCount)),
             ("Heart Rate", HKQuantityType(.heartRate)),
@@ -185,12 +372,143 @@ class HealthKitManager: ObservableObject {
             ("Blood O2", HKQuantityType(.oxygenSaturation)),
             ("Calories", HKQuantityType(.activeEnergyBurned)),
             ("Sleep", HKCategoryType(.sleepAnalysis)),
-            ("Workouts", HKWorkoutType.workoutType())
+            ("Mindful", HKCategoryType(.mindfulSession)),
+            ("Workouts", HKWorkoutType.workoutType()),
+            ("Height", HKQuantityType(.height)),
+            ("Weight", HKQuantityType(.bodyMass))
         ]
 
         for (name, sampleType) in typesToCheck {
             let count = await Self.countSamplesOffMain(healthStore: healthStore, type: sampleType, days: 7)
-            print("[LifeIndex] \(name): \(count) samples in last 7 days")
+            debugLog("[LifeIndex]   \(name.padding(toLength: 12, withPad: " ", startingAt: 0)): \(count) samples")
+        }
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
+    }
+
+    // MARK: - Debug: Log Raw Samples with Source Info
+
+    func logRawSamplesWithSources() async {
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
+        debugLog("[LifeIndex] RAW SAMPLES WITH SOURCE INFO (today)")
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
+
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        // Steps samples
+        let stepSamples = await Self.fetchQuantitySamplesOffMain(healthStore: healthStore, type: .stepCount, start: startOfDay, end: endOfDay)
+        debugLog("[LifeIndex] ─── STEPS (\(stepSamples.count) samples) ───")
+        for sample in stepSamples.prefix(5) {
+            let value = sample.quantity.doubleValue(for: .count())
+            let source = sample.sourceRevision.source.name
+            let device = sample.device?.name ?? "unknown device"
+            debugLog("[LifeIndex]   \(Int(value)) steps | Source: \(source) | Device: \(device)")
+        }
+        if stepSamples.count > 5 {
+            debugLog("[LifeIndex]   ... and \(stepSamples.count - 5) more samples")
+        }
+
+        // Heart Rate samples
+        let hrSamples = await Self.fetchQuantitySamplesOffMain(healthStore: healthStore, type: .heartRate, start: startOfDay, end: endOfDay)
+        debugLog("[LifeIndex] ─── HEART RATE (\(hrSamples.count) samples) ───")
+        for sample in hrSamples.prefix(5) {
+            let value = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+            let source = sample.sourceRevision.source.name
+            let time = sample.startDate.formatted(date: .omitted, time: .shortened)
+            debugLog("[LifeIndex]   \(Int(value)) bpm @ \(time) | Source: \(source)")
+        }
+        if hrSamples.count > 5 {
+            debugLog("[LifeIndex]   ... and \(hrSamples.count - 5) more samples")
+        }
+
+        // HRV samples
+        let hrvSamples = await Self.fetchQuantitySamplesOffMain(healthStore: healthStore, type: .heartRateVariabilitySDNN, start: startOfDay, end: endOfDay)
+        debugLog("[LifeIndex] ─── HRV (\(hrvSamples.count) samples) ───")
+        for sample in hrvSamples {
+            let value = sample.quantity.doubleValue(for: .secondUnit(with: .milli))
+            let source = sample.sourceRevision.source.name
+            let time = sample.startDate.formatted(date: .omitted, time: .shortened)
+            debugLog("[LifeIndex]   \(String(format: "%.1f", value)) ms @ \(time) | Source: \(source)")
+        }
+
+        // Resting HR samples
+        let restingHRSamples = await Self.fetchQuantitySamplesOffMain(healthStore: healthStore, type: .restingHeartRate, start: startOfDay, end: endOfDay)
+        debugLog("[LifeIndex] ─── RESTING HR (\(restingHRSamples.count) samples) ───")
+        for sample in restingHRSamples {
+            let value = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+            let source = sample.sourceRevision.source.name
+            debugLog("[LifeIndex]   \(Int(value)) bpm | Source: \(source)")
+        }
+
+        // Blood Oxygen samples
+        let o2Samples = await Self.fetchQuantitySamplesOffMain(healthStore: healthStore, type: .oxygenSaturation, start: startOfDay, end: endOfDay)
+        debugLog("[LifeIndex] ─── BLOOD OXYGEN (\(o2Samples.count) samples) ───")
+        for sample in o2Samples {
+            let value = sample.quantity.doubleValue(for: .percent()) * 100
+            let source = sample.sourceRevision.source.name
+            debugLog("[LifeIndex]   \(String(format: "%.1f", value))% | Source: \(source)")
+        }
+
+        // Active Calories samples
+        let calSamples = await Self.fetchQuantitySamplesOffMain(healthStore: healthStore, type: .activeEnergyBurned, start: startOfDay, end: endOfDay)
+        debugLog("[LifeIndex] ─── ACTIVE CALORIES (\(calSamples.count) samples) ───")
+        for sample in calSamples.prefix(5) {
+            let value = sample.quantity.doubleValue(for: .kilocalorie())
+            let source = sample.sourceRevision.source.name
+            debugLog("[LifeIndex]   \(String(format: "%.1f", value)) kcal | Source: \(source)")
+        }
+        if calSamples.count > 5 {
+            debugLog("[LifeIndex]   ... and \(calSamples.count - 5) more samples")
+        }
+
+        // Sleep samples (look back 12 hours)
+        let sleepStart = calendar.date(byAdding: .hour, value: -12, to: startOfDay) ?? startOfDay
+        let sleepSamples = await Self.fetchSleepSamplesWithSourceOffMain(healthStore: healthStore, start: sleepStart, end: endOfDay)
+        debugLog("[LifeIndex] ─── SLEEP (\(sleepSamples.count) samples) ───")
+        for sample in sleepSamples {
+            let duration = sample.endDate.timeIntervalSince(sample.startDate) / 60
+            let source = sample.sourceRevision.source.name
+            let valueType = Self.sleepValueName(sample.value)
+            let startTime = sample.startDate.formatted(date: .omitted, time: .shortened)
+            let endTime = sample.endDate.formatted(date: .omitted, time: .shortened)
+            debugLog("[LifeIndex]   \(valueType): \(String(format: "%.0f", duration)) min (\(startTime)-\(endTime)) | Source: \(source)")
+        }
+
+        debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
+    }
+
+    private static func sleepValueName(_ value: Int) -> String {
+        switch value {
+        case HKCategoryValueSleepAnalysis.inBed.rawValue: return "inBed"
+        case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue: return "asleepUnspecified"
+        case HKCategoryValueSleepAnalysis.asleepCore.rawValue: return "asleepCore"
+        case HKCategoryValueSleepAnalysis.asleepDeep.rawValue: return "asleepDeep"
+        case HKCategoryValueSleepAnalysis.asleepREM.rawValue: return "asleepREM"
+        case HKCategoryValueSleepAnalysis.awake.rawValue: return "awake"
+        default: return "unknown(\(value))"
+        }
+    }
+
+    nonisolated private static func fetchSleepSamplesWithSourceOffMain(
+        healthStore: HKHealthStore,
+        start: Date,
+        end: Date
+    ) async -> [HKCategorySample] {
+        let sleepType = HKCategoryType(.sleepAnalysis)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, _ in
+                let categorySamples = (samples ?? []).compactMap { $0 as? HKCategorySample }
+                continuation.resume(returning: categorySamples)
+            }
+            healthStore.execute(query)
         }
     }
 
@@ -467,6 +785,46 @@ class HealthKitManager: ObservableObject {
             let query = HKSampleQuery(
                 sampleType: type,
                 predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, _ in
+                continuation.resume(returning: samples?.count ?? 0)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// Count samples with specific date range
+    nonisolated private static func countSamplesForTypeOffMain(
+        healthStore: HKHealthStore,
+        type: HKSampleType,
+        start: Date,
+        end: Date
+    ) async -> Int {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, _ in
+                continuation.resume(returning: samples?.count ?? 0)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// Count ALL samples for a type (no date filter) - to check if any data exists at all
+    nonisolated private static func countAllSamplesForTypeOffMain(
+        healthStore: HKHealthStore,
+        type: HKSampleType
+    ) async -> Int {
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: nil,
                 limit: HKObjectQueryNoLimit,
                 sortDescriptors: nil
             ) { _, samples, _ in

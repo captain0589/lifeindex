@@ -399,7 +399,11 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "LifeIndex UAT";
+				INFOPLIST_KEY_NSCameraUsageDescription = "LifeIndex uses your camera to take photos of food for calorie logging.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LifeIndex reads your health data to calculate your daily score and show insights across sleep, activity, heart rate, and more.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LifeIndex saves your food and calorie entries to Apple Health so your nutrition data stays in sync across apps.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "LifeIndex accesses your photo library to attach food photos to calorie entries.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -445,7 +449,11 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = LifeIndex;
+				INFOPLIST_KEY_NSCameraUsageDescription = "LifeIndex uses your camera to take photos of food for calorie logging.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LifeIndex reads your health data to calculate your daily score and show insights across sleep, activity, heart rate, and more.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LifeIndex saves your food and calorie entries to Apple Health so your nutrition data stays in sync across apps.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "LifeIndex accesses your photo library to attach food photos to calorie entries.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;

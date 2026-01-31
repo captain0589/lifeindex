@@ -38,6 +38,11 @@ class DashboardViewModel: ObservableObject {
     @Published var hrv: Double?
     @Published var bloodOxygen: Double?
 
+    // Nutrition
+    @Published var consumedCalories: Double = 0
+    @Published var dailyCalorieGoal: Double = 2000
+    @Published var todayFoodLogs: [FoodLog] = []
+
     // Sleep section
     @Published var sleepMinutes: Double?
 
@@ -95,20 +100,20 @@ class DashboardViewModel: ObservableObject {
 
     func loadData(forceRefresh: Bool = false) async {
         guard let manager = healthKitManager else {
-            print("[LifeIndex] No healthKitManager configured")
+            debugLog("[LifeIndex] No healthKitManager configured")
             return
         }
 
         // Skip if already loading (prevent concurrent loads)
         if isLoadInProgress {
-            print("[LifeIndex] Load already in progress, skipping")
+            debugLog("[LifeIndex] Load already in progress, skipping")
             return
         }
 
         // Skip if data was loaded recently (cache still fresh)
         if !forceRefresh, let lastLoaded = lastLoadedAt,
            Date().timeIntervalSince(lastLoaded) < cacheInterval {
-            print("[LifeIndex] Data is fresh (loaded \(Int(Date().timeIntervalSince(lastLoaded)))s ago), skipping reload")
+            debugLog("[LifeIndex] Data is fresh (loaded \(Int(Date().timeIntervalSince(lastLoaded)))s ago), skipping reload")
             return
         }
 
@@ -120,9 +125,13 @@ class DashboardViewModel: ObservableObject {
             do {
                 try await manager.requestAuthorization()
             } catch {
-                print("[LifeIndex] Authorization error: \(error)")
+                debugLog("[LifeIndex] Authorization error: \(error)")
             }
         }
+
+        // Log raw HealthKit data for debugging
+        await manager.logAvailableSources()
+        await manager.logRawSamplesWithSources()
 
         await manager.fetchTodaySummary()
         await manager.fetchWeeklyData()
@@ -137,7 +146,7 @@ class DashboardViewModel: ObservableObject {
             if let recentDay = manager.weeklyData.last(where: { !$0.metrics.isEmpty }) {
                 summary = recentDay
                 showingYesterdayData = true
-                print("[LifeIndex] Today empty, using data from \(recentDay.date.shortDayName)")
+                debugLog("[LifeIndex] Today empty, using data from \(recentDay.date.shortDayName)")
             }
         }
 
@@ -159,6 +168,9 @@ class DashboardViewModel: ObservableObject {
 
         // Apple Activity Summary (Phase 6)
         await fetchActivitySummary(manager: manager)
+
+        // Nutrition: load consumed calories from Core Data
+        loadNutritionData()
 
         // Heart
         heartRate = summary.metrics[.heartRate]
@@ -209,6 +221,9 @@ class DashboardViewModel: ObservableObject {
         // Insights (Phase 4 — priority-based)
         buildPriorityInsights(from: summary, weekly: manager.weeklyData)
 
+        // Save today's report to Core Data
+        saveTodayReport()
+
         // AI Summary (Phase 7)
         checkAISupport()
         await generateShortSummary(from: summary)
@@ -216,6 +231,17 @@ class DashboardViewModel: ObservableObject {
         isLoading = false
         isLoadInProgress = false
         lastLoadedAt = Date()
+    }
+
+    // MARK: - Nutrition Data
+
+    func loadNutritionData() {
+        let foodLogs = CoreDataStack.shared.fetchFoodLogs(for: .now)
+        todayFoodLogs = foodLogs
+        consumedCalories = Double(foodLogs.reduce(0) { $0 + Int($1.calories) })
+
+        let storedGoal = UserDefaults.standard.integer(forKey: "dailyCalorieGoal")
+        dailyCalorieGoal = storedGoal > 0 ? Double(storedGoal) : 2000
     }
 
     // MARK: - Phase 3: Score Explanation
@@ -469,7 +495,7 @@ class DashboardViewModel: ObservableObject {
         return await withCheckedContinuation { continuation in
             let query = HKActivitySummaryQuery(predicate: predicate) { _, summaries, error in
                 if let error {
-                    print("[LifeIndex] Activity summary error: \(error.localizedDescription)")
+                    debugLog("[LifeIndex] Activity summary error: \(error.localizedDescription)")
                 }
                 if let summary = summaries?.first {
                     continuation.resume(returning: HKActivitySummaryWrapper(summary: summary))
@@ -490,7 +516,7 @@ class DashboardViewModel: ObservableObject {
             let availability = SystemLanguageModel.default.availability
             supportsAI = (availability == .available)
             if !supportsAI {
-                print("[LifeIndex] Foundation Models not available on this device (status: \(availability))")
+                debugLog("[LifeIndex] Foundation Models not available on this device (status: \(availability))")
             }
             return
         }
@@ -509,7 +535,7 @@ class DashboardViewModel: ObservableObject {
                     return
                 }
             } catch {
-                print("[LifeIndex] Foundation Models (short) error: \(error.localizedDescription)")
+                debugLog("[LifeIndex] Foundation Models (short) error: \(error.localizedDescription)")
                 supportsAI = false // Don't retry if model fails
             }
         }
@@ -534,7 +560,7 @@ class DashboardViewModel: ObservableObject {
                     return
                 }
             } catch {
-                print("[LifeIndex] Foundation Models (detailed) error: \(error.localizedDescription)")
+                debugLog("[LifeIndex] Foundation Models (detailed) error: \(error.localizedDescription)")
                 supportsAI = false
             }
         }
@@ -725,6 +751,183 @@ class DashboardViewModel: ObservableObject {
         }
 
         return sections.joined(separator: "\n")
+    }
+
+    // MARK: - Daily Report Persistence
+
+    private func saveTodayReport() {
+        let storedInsights = insights.map { insight in
+            StoredInsight(
+                icon: insight.icon,
+                text: insight.text,
+                colorName: colorToName(insight.color),
+                priority: insight.priority
+            )
+        }
+
+        CoreDataStack.shared.saveDailyReport(
+            date: Date(),
+            score: lifeIndexScore,
+            insights: storedInsights,
+            aiShortSummary: aiShortSummary,
+            aiDetailedSummary: aiDetailedSummary
+        )
+    }
+
+    /// Fetches yesterday's stored report if available
+    func fetchYesterdayReport() -> DailyReport? {
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) else {
+            return nil
+        }
+        return CoreDataStack.shared.fetchDailyReport(for: yesterday)
+    }
+
+    /// Converts stored insights back to HealthInsights
+    func storedInsightsToHealthInsights(_ stored: [StoredInsight]) -> [HealthInsight] {
+        stored.map { insight in
+            HealthInsight(
+                icon: insight.icon,
+                text: insight.text,
+                color: nameToColor(insight.colorName),
+                priority: insight.priority
+            )
+        }
+    }
+
+    /// Generates insights for yesterday's data (if not already stored)
+    func generateYesterdayInsights() -> [HealthInsight] {
+        guard let yesterdayData = weeklyData.first(where: { Calendar.current.isDateInYesterday($0.date) }) else {
+            return []
+        }
+
+        // Build insights from yesterday's summary
+        var candidates: [(insight: HealthInsight, priority: Int)] = []
+
+        // Sleep insights
+        if let sleep = yesterdayData.metrics[.sleepDuration] {
+            let hours = Int(sleep / 60)
+            let mins = Int(sleep) % 60
+            if sleep < 360 {
+                candidates.append((
+                    HealthInsight(icon: "exclamationmark.triangle.fill",
+                                  text: "Only \(hours)h \(mins)m of sleep. This significantly impacts recovery and focus.",
+                                  color: .red, priority: 90),
+                    90
+                ))
+            } else if sleep < 420 {
+                candidates.append((
+                    HealthInsight(icon: "moon.zzz.fill",
+                                  text: "You slept \(hours)h \(mins)m — under the 7hr minimum.",
+                                  color: .orange, priority: 60),
+                    60
+                ))
+            } else if sleep <= 540 {
+                candidates.append((
+                    HealthInsight(icon: "checkmark.circle.fill",
+                                  text: "Great sleep — \(hours)h \(mins)m is in the ideal 7-9hr range.",
+                                  color: .green, priority: 20),
+                    20
+                ))
+            }
+        }
+
+        // Steps insights
+        if let steps = yesterdayData.metrics[.steps] {
+            if steps < 5000 && steps > 0 {
+                candidates.append((
+                    HealthInsight(icon: "figure.walk",
+                                  text: "Only \(Int(steps)) steps (\(Int((steps / 10000) * 100))%).",
+                                  color: .orange, priority: 75),
+                    75
+                ))
+            } else if steps >= 10000 {
+                candidates.append((
+                    HealthInsight(icon: "star.fill",
+                                  text: "\(Int(steps)) steps — 10k goal achieved!",
+                                  color: .green, priority: 20),
+                    20
+                ))
+            }
+        }
+
+        // Resting HR insights
+        if let rhr = yesterdayData.metrics[.restingHeartRate] {
+            if rhr > 80 {
+                candidates.append((
+                    HealthInsight(icon: "heart.circle",
+                                  text: "Resting HR was \(Int(rhr)) bpm — elevated.",
+                                  color: .orange, priority: 85),
+                    85
+                ))
+            } else if rhr <= 65 {
+                candidates.append((
+                    HealthInsight(icon: "heart.circle",
+                                  text: "Resting HR was \(Int(rhr)) bpm — healthy range.",
+                                  color: Theme.heartRate, priority: 30),
+                    30
+                ))
+            }
+        }
+
+        // Active calories
+        if let calories = yesterdayData.metrics[.activeCalories] {
+            if calories >= 500 {
+                candidates.append((
+                    HealthInsight(icon: "flame.fill",
+                                  text: "Burned \(Int(calories)) active calories — solid activity!",
+                                  color: .green, priority: 25),
+                    25
+                ))
+            } else if calories < 200 && calories > 0 {
+                candidates.append((
+                    HealthInsight(icon: "flame",
+                                  text: "Only \(Int(calories)) active calories burned.",
+                                  color: .orange, priority: 70),
+                    70
+                ))
+            }
+        }
+
+        let sorted = candidates.sorted { $0.priority > $1.priority }
+        return Array(sorted.prefix(4).map { $0.insight })
+    }
+
+    private func colorToName(_ color: Color) -> String {
+        switch color {
+        case .red: return "red"
+        case .orange: return "orange"
+        case .yellow: return "yellow"
+        case .green: return "green"
+        case .blue: return "blue"
+        case .purple: return "purple"
+        case Theme.steps: return "steps"
+        case Theme.heartRate: return "heartRate"
+        case Theme.hrv: return "hrv"
+        case Theme.sleep: return "sleep"
+        case Theme.calories: return "calories"
+        case Theme.activity: return "activity"
+        case Theme.mindfulness: return "mindfulness"
+        default: return "primary"
+        }
+    }
+
+    private func nameToColor(_ name: String) -> Color {
+        switch name {
+        case "red": return .red
+        case "orange": return .orange
+        case "yellow": return .yellow
+        case "green": return .green
+        case "blue": return .blue
+        case "purple": return .purple
+        case "steps": return Theme.steps
+        case "heartRate": return Theme.heartRate
+        case "hrv": return Theme.hrv
+        case "sleep": return Theme.sleep
+        case "calories": return Theme.calories
+        case "activity": return Theme.activity
+        case "mindfulness": return Theme.mindfulness
+        default: return Theme.primaryText
+        }
     }
 }
 
