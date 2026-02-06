@@ -119,6 +119,13 @@
 "food.adjustIfNeeded" = "Adjust if needed";
 "food.enterMacros" = "Enter grams for detailed macro tracking";
 "food.placeholder" = "e.g. Chicken salad";
+"food.overGoal" = "Over";
+"food.baseGoal" = "Goal";
+"food.food" = "Food";
+"food.exercise" = "Exercise";
+"food.macros" = "Macros";
+"food.macronutrients" = "Macronutrients";
+"food.left" = "left";
 
 // MARK: - Fitness
 "fitness.title" = "Fitness";
@@ -132,16 +139,11 @@
 // Energy & Calorie Balance
 "fitness.energyBurned" = "Energy Burned";
 "fitness.burnedToday" = "burned today";
-"fitness.todaysBalance" = "Today's Balance";
-"fitness.insight.deficit" = "%d kcal deficit";
-"fitness.insight.surplus" = "%d kcal surplus";
-"fitness.insight.balanced" = "Perfectly balanced";
+"fitness.goalReached" = "Daily goal reached!";
 "fitness.eaten" = "Eaten";
 "fitness.burned" = "Burned";
 "fitness.remaining" = "Remaining";
 "fitness.over" = "Over";
-"fitness.deficitGoal" = "You have a weight loss goal (-500 kcal/day)";
-"fitness.surplusGoal" = "You have a weight gain goal (+300 kcal/day)";
 
 // Weekly Workout Summary
 "fitness.weeklyWorkouts" = "This Week's Workouts";
@@ -575,3 +577,17 @@
 "recoveryLabel.mostlyRecovered" = "Mostly Recovered";
 "recoveryLabel.partiallyRecovered" = "Partially Recovered";
 "recoveryLabel.restRecommended" = "Rest Recommended";
+
+// MARK: - Chat / AI Assistant
+"chat.title" = "Health AI";
+"chat.newChat" = "New Chat";
+"chat.placeholder" = "Ask about your health...";
+"chat.welcome.title" = "Hi, I'm your Health AI";
+"chat.welcome.subtitle" = "I can help you understand your health data and answer questions about sleep, activity, heart health, and recovery.";
+"chat.suggestions" = "Try asking";
+"chat.history" = "Chat History";
+"chat.deleteChat" = "Delete Chat";
+"chat.clearHistory" = "Clear History";
+"chat.clearHistoryConfirm" = "This will delete all your chat history. This action cannot be undone.";
+"chat.aiPowered" = "Powered by Apple Intelligence";
+"chat.basicMode" = "Basic Mode";

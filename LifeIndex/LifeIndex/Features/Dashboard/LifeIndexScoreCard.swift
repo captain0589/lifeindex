@@ -104,10 +104,10 @@ struct LifeIndexSection: View {
                             .font(.system(size: 9, weight: .semibold))
                     }
                     .foregroundStyle(Theme.accentColor)
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, Theme.Spacing.md)
                     .padding(.vertical, Theme.Spacing.sm)
                     .background(Theme.accentColor.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Spacing.sm))
+                    .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
 

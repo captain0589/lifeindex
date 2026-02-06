@@ -7,12 +7,32 @@ struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @State private var showFoodLog = false
     @State private var showSettings = false
+    @State private var showChat = false
     @State private var nutritionManager: NutritionManager?
     @State private var foodLogViewModel: FoodLogViewModel?
 
     private var isLateNight: Bool {
         let hour = Calendar.current.component(.hour, from: Date())
         return hour >= 0 && hour < 6
+    }
+
+    private func buildHealthContext() -> HealthContext {
+        HealthContext(
+            lifeIndexScore: viewModel.lifeIndexScore,
+            scoreLabel: viewModel.scoreLabel,
+            steps: viewModel.stepsValue > 0 ? viewModel.stepsValue : nil,
+            activeCalories: viewModel.caloriesValue > 0 ? viewModel.caloriesValue : nil,
+            heartRate: viewModel.heartRate,
+            restingHeartRate: viewModel.restingHeartRate,
+            hrv: viewModel.hrv,
+            sleepMinutes: viewModel.sleepMinutes,
+            recoveryScore: viewModel.recoveryScore,
+            workoutMinutes: viewModel.workoutMinutesValue > 0 ? viewModel.workoutMinutesValue : nil,
+            insights: viewModel.insights.map { $0.text },
+            weeklyScores: viewModel.weeklyScores,
+            weeklyAverageScore: viewModel.weeklyAverageScore,
+            historicalDays: viewModel.weeklyData
+        )
     }
 
     var body: some View {
@@ -158,6 +178,16 @@ struct DashboardView: View {
                 if let foodLogVM = foodLogViewModel {
                     FoodLogSheet(viewModel: foodLogVM, isPresented: $showFoodLog)
                 }
+            }
+            .sheet(isPresented: $showChat) {
+                HealthAIChatView(healthContextBuilder: { [self] in
+                    buildHealthContext()
+                })
+            }
+            .overlay(alignment: .bottomTrailing) {
+                FloatingChatButton(showChat: $showChat)
+                    .padding(.trailing, Theme.Spacing.lg)
+                    .padding(.bottom, Theme.Spacing.lg)
             }
         }
         .task {

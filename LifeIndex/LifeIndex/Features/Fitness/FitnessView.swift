@@ -7,12 +7,7 @@ struct FitnessView: View {
     @State private var selectedWorkout: WorkoutData?
     @State private var showAllWorkouts = false
     @State private var showWorkoutCalendar = false
-    @State private var todayFoodLogs: [FoodLog] = []
     @State private var selectedDate: Date = .now
-
-    // User profile for calorie goals
-    @AppStorage("dailyCalorieGoal") private var dailyCalorieGoal: Int = 2000
-    @AppStorage("userGoalType") private var userGoalType: Int = 1
 
     private let maxDisplayedWorkouts = 6
 
@@ -22,15 +17,6 @@ struct FitnessView: View {
         let weekday = calendar.component(.weekday, from: today)
         let startOfWeek = calendar.date(byAdding: .day, value: -(weekday - 1), to: today)!
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
-    }
-
-    private var consumedCalories: Int {
-        todayFoodLogs.reduce(0) { $0 + Int($1.calories) }
-    }
-
-    private var goalAdjustment: Int {
-        let goal = NutritionEngine.GoalType(rawValue: userGoalType) ?? .maintain
-        return goal.calorieAdjustment
     }
 
     private var stepsValue: Double {
@@ -43,6 +29,10 @@ struct FitnessView: View {
 
     private var exerciseValue: Double {
         healthKitManager.todaySummary.metrics[.workoutMinutes] ?? 0
+    }
+
+    private var caloriesGoal: Double {
+        500 // Daily active calorie goal
     }
 
     private var displayedWorkouts: [WorkoutData] {
@@ -71,9 +61,8 @@ struct FitnessView: View {
 
                     // MARK: - Energy Burn Card
                     EnergyBurnCard(
-                        consumed: consumedCalories,
                         burned: Int(caloriesValue),
-                        goalAdjustment: goalAdjustment
+                        goal: Int(caloriesGoal)
                     )
                     .padding(.horizontal)
 
@@ -209,7 +198,6 @@ struct FitnessView: View {
         await healthKitManager.fetchTodaySummary()
         await healthKitManager.fetchRecentWorkouts()
         await healthKitManager.fetchWeeklyData()
-        todayFoodLogs = CoreDataStack.shared.fetchFoodLogs(for: Date())
         isLoading = false
     }
 }
@@ -1168,58 +1156,30 @@ struct FitnessLegendRow: View {
     }
 }
 
-// MARK: - Energy Burn Card (Focus on burned calories with insight)
+// MARK: - Energy Burn Card (Focus on active calories burned)
 
 struct EnergyBurnCard: View {
-    let consumed: Int
     let burned: Int
-    let goalAdjustment: Int
+    let goal: Int
 
-    private var netBalance: Int {
-        consumed - burned
+    private var progress: Double {
+        guard goal > 0 else { return 0 }
+        return min(1.0, Double(burned) / Double(goal))
     }
 
-    private var isDeficit: Bool {
-        netBalance < 0
-    }
-
-    private var insightText: String {
-        let diff = abs(netBalance)
-        if isDeficit {
-            return String(format: "fitness.insight.deficit".localized, diff)
-        } else if netBalance == 0 {
-            return "fitness.insight.balanced".localized
+    private var progressColor: Color {
+        if progress >= 1.0 {
+            return .green
+        } else if progress >= 0.7 {
+            return Theme.activity
         } else {
-            return String(format: "fitness.insight.surplus".localized, diff)
-        }
-    }
-
-    private var insightColor: Color {
-        // For weight loss goal, deficit is good (green)
-        // For weight gain goal, surplus is good (green)
-        // For maintain, balanced is good
-        if goalAdjustment < 0 { // Lose weight goal
-            return isDeficit ? .green : .orange
-        } else if goalAdjustment > 0 { // Gain weight goal
-            return isDeficit ? .orange : .green
-        } else { // Maintain
-            return abs(netBalance) < 200 ? .green : .orange
-        }
-    }
-
-    private var insightIcon: String {
-        if isDeficit {
-            return "arrow.down.circle.fill"
-        } else if netBalance == 0 {
-            return "equal.circle.fill"
-        } else {
-            return "arrow.up.circle.fill"
+            return Theme.activity.opacity(0.8)
         }
     }
 
     var body: some View {
         VStack(spacing: Theme.Spacing.lg) {
-            // Header
+            // Header with goal
             HStack {
                 HStack(spacing: Theme.Spacing.sm) {
                     Image(systemName: "flame.fill")
@@ -1229,6 +1189,11 @@ struct EnergyBurnCard: View {
                         .font(.system(.headline, design: .rounded, weight: .bold))
                 }
                 Spacer()
+
+                // Goal indicator
+                Text("\(burned)/\(goal) " + "units.kcal".localized)
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(Theme.secondaryText)
             }
 
             // Main burned display
@@ -1236,7 +1201,8 @@ struct EnergyBurnCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(burned)")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(Theme.activity)
+                        .foregroundStyle(progressColor)
+                        .contentTransition(.numericText())
                     Text("units.kcal".localized + " " + "fitness.burnedToday".localized)
                         .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(Theme.secondaryText)
@@ -1251,59 +1217,33 @@ struct EnergyBurnCard: View {
                         .frame(width: 70, height: 70)
 
                     Circle()
-                        .trim(from: 0, to: min(1.0, Double(burned) / 500.0))
-                        .stroke(Theme.activity, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .trim(from: 0, to: progress)
+                        .stroke(progressColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                         .frame(width: 70, height: 70)
                         .rotationEffect(.degrees(-90))
+                        .animation(.easeInOut(duration: 0.5), value: progress)
 
-                    Image(systemName: "flame.fill")
+                    Image(systemName: burned >= goal ? "flame.fill" : "flame")
                         .font(.system(size: 24))
-                        .foregroundStyle(Theme.activity)
+                        .foregroundStyle(progressColor)
                 }
             }
 
-            Divider()
-
-            // Insight: Burn vs Intake
-            HStack(spacing: Theme.Spacing.md) {
-                Image(systemName: insightIcon)
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(insightColor)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("fitness.todaysBalance".localized)
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Theme.secondaryText)
-
-                    Text(insightText)
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(insightColor)
+            // Goal reached celebration
+            if burned >= goal {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.green)
+                    Text("fitness.goalReached".localized)
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(.green)
                 }
-
-                Spacer()
-
-                // Mini comparison
-                VStack(alignment: .trailing, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "fork.knife")
-                            .font(.system(size: 12))
-                        Text("\(consumed)")
-                            .font(.system(.caption, design: .rounded, weight: .semibold))
-                    }
-                    .foregroundStyle(Theme.calories)
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 12))
-                        Text("\(burned)")
-                            .font(.system(.caption, design: .rounded, weight: .semibold))
-                    }
-                    .foregroundStyle(Theme.activity)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Theme.Spacing.sm)
+                .background(Color.green.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
             }
-            .padding(Theme.Spacing.md)
-            .background(insightColor.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm, style: .continuous))
         }
         .cardStyle()
     }

@@ -37,13 +37,20 @@ struct FoodView: View {
         healthKitManager.todaySummary.value(for: .activeCalories) ?? 0
     }
 
+    // MyFitnessPal formula: Remaining = Goal - Food + Exercise
     private var remaining: Int {
-        dailyCalorieGoal - Int(consumedCalories)
+        dailyCalorieGoal - Int(consumedCalories) + Int(burnedCalories)
+    }
+
+    private var isOverGoal: Bool {
+        remaining < 0
     }
 
     private var progress: Double {
         guard dailyCalorieGoal > 0 else { return 0 }
-        return min(1.0, consumedCalories / Double(dailyCalorieGoal))
+        // Progress based on net consumption (food - exercise)
+        let netConsumed = consumedCalories - burnedCalories
+        return min(1.0, max(0, netConsumed / Double(dailyCalorieGoal)))
     }
 
     // Macro totals from today's logs
@@ -84,86 +91,27 @@ struct FoodView: View {
                     )
                     .padding(.horizontal)
 
-                    // MARK: - Goal Settings (moved up)
+                    // MARK: - Calories & Macros Pager (MyFitnessPal style)
+                    CaloriesMacrosPager(
+                        remaining: remaining,
+                        isOverGoal: isOverGoal,
+                        goal: dailyCalorieGoal,
+                        food: Int(consumedCalories),
+                        exercise: Int(burnedCalories),
+                        protein: todayProtein,
+                        proteinTarget: Double(macroTargets.protein),
+                        carbs: todayCarbs,
+                        carbsTarget: Double(macroTargets.carbs),
+                        fat: todayFat,
+                        fatTarget: Double(macroTargets.fat)
+                    )
+                    .padding(.horizontal)
+
+                    // MARK: - Goal Settings
                     GoalSettingsCard(
                         dailyGoal: $dailyCalorieGoal,
                         calculatedGoal: calculatedGoal
                     )
-                    .padding(.horizontal)
-
-                    // MARK: - Calorie Card
-                    VStack(spacing: Theme.Spacing.lg) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(alignment: .firstTextBaseline, spacing: 0) {
-                                    Text("\(Int(consumedCalories))")
-                                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                                    Text("/\(dailyCalorieGoal)")
-                                        .font(.system(size: 20, weight: .medium, design: .rounded))
-                                        .foregroundStyle(Theme.secondaryText)
-                                }
-                                Text("food.caloriesEaten".localized)
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .foregroundStyle(Theme.secondaryText)
-                            }
-
-                            Spacer()
-
-                            // Calorie ring
-                            ZStack {
-                                Circle()
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 8)
-
-                                Circle()
-                                    .trim(from: 0, to: progress)
-                                    .stroke(
-                                        Theme.calories,
-                                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                                    )
-                                    .rotationEffect(.degrees(-90))
-                                    .animation(.easeInOut(duration: 0.5), value: progress)
-
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(Theme.calories)
-                            }
-                            .frame(width: 60, height: 60)
-                        }
-                    }
-                    .padding(Theme.Spacing.lg)
-                    .background(.regularMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .padding(.horizontal)
-
-                    // MARK: - Macro Cards
-                    HStack(spacing: Theme.Spacing.md) {
-                        MacroCard(
-                            labelKey: "food.protein",
-                            current: todayProtein,
-                            target: Double(macroTargets.protein),
-                            unit: "food.grams".localized,
-                            color: .red.opacity(0.8),
-                            icon: "p.circle.fill"
-                        )
-
-                        MacroCard(
-                            labelKey: "food.carbs",
-                            current: todayCarbs,
-                            target: Double(macroTargets.carbs),
-                            unit: "food.grams".localized,
-                            color: .orange,
-                            icon: "c.circle.fill"
-                        )
-
-                        MacroCard(
-                            labelKey: "food.fat",
-                            current: todayFat,
-                            target: Double(macroTargets.fat),
-                            unit: "food.grams".localized,
-                            color: .blue,
-                            icon: "f.circle.fill"
-                        )
-                    }
                     .padding(.horizontal)
 
                     // MARK: - Today's Meals / Diary
@@ -1199,5 +1147,237 @@ struct CaloriesBurnedWeeklyCard: View {
             }
         }
         .cardStyle()
+    }
+}
+
+// MARK: - Calories & Macros Pager (MyFitnessPal style)
+
+private struct CaloriesMacrosPager: View {
+    let remaining: Int
+    let isOverGoal: Bool
+    let goal: Int
+    let food: Int
+    let exercise: Int
+
+    let protein: Double
+    let proteinTarget: Double
+    let carbs: Double
+    let carbsTarget: Double
+    let fat: Double
+    let fatTarget: Double
+
+    @State private var selectedPage = 0
+
+    var body: some View {
+        // Swipeable content with peek effect - no indicators needed
+        TabView(selection: $selectedPage) {
+            // MARK: - Calories Card (Page 0)
+            CaloriesMainCard(
+                remaining: remaining,
+                isOverGoal: isOverGoal,
+                goal: goal,
+                food: food,
+                exercise: exercise
+            )
+            .padding(.trailing, 20) // Show peek of next card
+            .tag(0)
+
+            // MARK: - Macros Card (Page 1)
+            MacrosMainCard(
+                protein: protein,
+                proteinTarget: proteinTarget,
+                carbs: carbs,
+                carbsTarget: carbsTarget,
+                fat: fat,
+                fatTarget: fatTarget
+            )
+            .padding(.leading, 20) // Show peek of previous card
+            .tag(1)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 220)
+    }
+}
+
+// MARK: - Calories Main Card
+
+private struct CaloriesMainCard: View {
+    let remaining: Int
+    let isOverGoal: Bool
+    let goal: Int
+    let food: Int
+    let exercise: Int
+
+    private var remainingColor: Color {
+        if isOverGoal {
+            return .red
+        } else if remaining < 200 {
+            return .orange
+        } else {
+            return .green
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            // Main remaining display
+            VStack(spacing: 4) {
+                Text("\(abs(remaining))")
+                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                    .foregroundStyle(remainingColor)
+                    .contentTransition(.numericText())
+
+                Text(isOverGoal ? "food.overGoal".localized : "food.remaining".localized)
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+            }
+
+            // Equation breakdown: remaining = Goal - Food + Exercise
+            HStack(spacing: 0) {
+                Text("remaining =")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .padding(.trailing, 4)
+
+                EquationItem(label: "food.baseGoal".localized, value: goal, color: Theme.primaryText)
+
+                Text("−")
+                    .font(.system(.callout, design: .rounded, weight: .bold))
+                    .foregroundStyle(Theme.secondaryText)
+                    .padding(.horizontal, 4)
+
+                EquationItem(label: "food.food".localized, value: food, color: Theme.calories)
+
+                Text("+")
+                    .font(.system(.callout, design: .rounded, weight: .bold))
+                    .foregroundStyle(Theme.secondaryText)
+                    .padding(.horizontal, 4)
+
+                EquationItem(label: "food.exercise".localized, value: exercise, color: Theme.activity)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Theme.Spacing.lg)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+// MARK: - Equation Item
+
+private struct EquationItem: View {
+    let label: String
+    let value: Int
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.system(.callout, design: .rounded, weight: .bold))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(.system(size: 9, design: .rounded))
+                .foregroundStyle(Theme.secondaryText)
+        }
+        .frame(minWidth: 55)
+    }
+}
+
+// MARK: - Macros Main Card
+
+private struct MacrosMainCard: View {
+    let protein: Double
+    let proteinTarget: Double
+    let carbs: Double
+    let carbsTarget: Double
+    let fat: Double
+    let fatTarget: Double
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            Text("food.macronutrients".localized)
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .foregroundStyle(Theme.secondaryText)
+
+            HStack(spacing: Theme.Spacing.xl) {
+                MacroRing(
+                    label: "food.protein".localized,
+                    current: protein,
+                    target: proteinTarget,
+                    color: .pink
+                )
+
+                MacroRing(
+                    label: "food.carbs".localized,
+                    current: carbs,
+                    target: carbsTarget,
+                    color: .orange
+                )
+
+                MacroRing(
+                    label: "food.fat".localized,
+                    current: fat,
+                    target: fatTarget,
+                    color: .blue
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Theme.Spacing.lg)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+// MARK: - Macro Ring
+
+private struct MacroRing: View {
+    let label: String
+    let current: Double
+    let target: Double
+    let color: Color
+
+    private var progress: Double {
+        guard target > 0 else { return 0 }
+        return min(1.0, current / target)
+    }
+
+    private var remaining: Int {
+        max(0, Int(target) - Int(current))
+    }
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            ZStack {
+                Circle()
+                    .stroke(color.opacity(0.2), lineWidth: 8)
+
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(color, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 0.5), value: progress)
+
+                VStack(spacing: 0) {
+                    Text("\(Int(current))")
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(color)
+                    Text("/\(Int(target))")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Theme.secondaryText)
+                }
+            }
+            .frame(width: 70, height: 70)
+
+            VStack(spacing: 2) {
+                Text(label)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(Theme.primaryText)
+                Text("\(remaining)g " + "food.left".localized)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+            }
+        }
     }
 }

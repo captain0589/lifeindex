@@ -575,3 +575,17 @@
 "recoveryLabel.mostlyRecovered" = "ฟื้นตัวเกือบเต็มที่";
 "recoveryLabel.partiallyRecovered" = "ฟื้นตัวบางส่วน";
 "recoveryLabel.restRecommended" = "ควรพักผ่อน";
+
+// MARK: - Chat / AI Assistant
+"chat.title" = "Health AI";
+"chat.newChat" = "แชทใหม่";
+"chat.placeholder" = "ถามเกี่ยวกับสุขภาพของคุณ...";
+"chat.welcome.title" = "สวัสดี ฉันคือ Health AI";
+"chat.welcome.subtitle" = "ฉันช่วยให้คุณเข้าใจข้อมูลสุขภาพและตอบคำถามเกี่ยวกับการนอน กิจกรรม หัวใจ และการฟื้นตัว";
+"chat.suggestions" = "ลองถาม";
+"chat.history" = "ประวัติแชท";
+"chat.deleteChat" = "ลบแชท";
+"chat.clearHistory" = "ล้างประวัติ";
+"chat.clearHistoryConfirm" = "การดำเนินการนี้จะลบประวัติแชททั้งหมด ไม่สามารถยกเลิกได้";
+"chat.aiPowered" = "ขับเคลื่อนโดย Apple Intelligence";
+"chat.basicMode" = "โหมดพื้นฐาน";

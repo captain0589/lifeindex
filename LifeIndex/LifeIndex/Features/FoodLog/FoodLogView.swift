@@ -168,9 +168,25 @@ struct FoodLogSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
 
                         if viewModel.estimationSource != nil {
-                            Text("food.adjustIfNeeded".localized)
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(Theme.secondaryText)
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                Text("food.adjustIfNeeded".localized)
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(Theme.secondaryText)
+
+                                // AI reasoning explanation
+                                if let reason = viewModel.estimationReason, !reason.isEmpty {
+                                    HStack(alignment: .top, spacing: Theme.Spacing.xs) {
+                                        Image(systemName: "info.circle")
+                                            .font(.system(.caption2))
+                                            .foregroundStyle(Theme.calories.opacity(0.8))
+                                        Text(reason)
+                                            .font(.system(.caption2, design: .rounded))
+                                            .foregroundStyle(Theme.tertiaryText)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(.top, 2)
+                                }
+                            }
                         }
                     }
 

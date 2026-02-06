@@ -51,152 +51,156 @@ struct RecoverySection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-            SectionHeader(title: "dashboard.recovery".localized, icon: "arrow.counterclockwise.circle.fill", color: Theme.recovery)
+        VStack(spacing: Theme.Spacing.lg) {
+            // Main Recovery Card
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                SectionHeader(title: "dashboard.recovery".localized, icon: "arrow.counterclockwise.circle.fill", color: Theme.recovery)
 
-            // Today's recovery
-            HStack(spacing: Theme.Spacing.lg) {
-                ZStack {
-                    Circle()
-                        .stroke(color.opacity(0.2), lineWidth: 10)
-                        .frame(width: 70, height: 70)
-                    Circle()
-                        .trim(from: 0, to: Double(todayScore) / 100.0)
-                        .stroke(color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                        .frame(width: 70, height: 70)
-                        .rotationEffect(.degrees(-90))
-                    Text("\(todayScore)")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
-                        .foregroundStyle(color)
-                }
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text(todayLabel)
-                        .font(Theme.body)
-                        .foregroundStyle(Theme.secondaryText)
-                    if RecoveryScoreEngine.shouldRest(score: todayScore) {
-                        Label("recovery.restRecommended".localized, systemImage: "moon.fill")
-                            .font(Theme.caption)
-                            .foregroundStyle(.orange)
+                // Today's recovery
+                HStack(spacing: Theme.Spacing.lg) {
+                    ZStack {
+                        Circle()
+                            .stroke(color.opacity(0.2), lineWidth: 10)
+                            .frame(width: 70, height: 70)
+                        Circle()
+                            .trim(from: 0, to: Double(todayScore) / 100.0)
+                            .stroke(color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                            .frame(width: 70, height: 70)
+                            .rotationEffect(.degrees(-90))
+                        Text("\(todayScore)")
+                            .font(.system(.title2, design: .rounded, weight: .bold))
+                            .foregroundStyle(color)
                     }
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        Text(todayLabel)
+                            .font(Theme.body)
+                            .foregroundStyle(Theme.secondaryText)
+                        if RecoveryScoreEngine.shouldRest(score: todayScore) {
+                            Label("recovery.restRecommended".localized, systemImage: "moon.fill")
+                                .font(Theme.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    Spacer()
                 }
-                Spacer()
-            }
 
-            // Comparison tiles
-            HStack(spacing: Theme.Spacing.xl) {
-                ComparisonTile(
-                    label: "common.today".localized,
-                    value: "\(todayScore)",
-                    color: color
-                )
-                if let yesterday = yesterdayRecovery {
+                // Comparison tiles
+                HStack(spacing: Theme.Spacing.xl) {
                     ComparisonTile(
-                        label: "common.yesterday".localized,
-                        value: "\(yesterday)",
-                        color: color.opacity(0.7)
-                    )
-                }
-                if let avg = weeklyAvg {
-                    ComparisonTile(
-                        label: "sleep.7dayAvg".localized,
-                        value: "\(avg)",
+                        label: "common.today".localized,
+                        value: "\(todayScore)",
                         color: color
                     )
+                    if let yesterday = yesterdayRecovery {
+                        ComparisonTile(
+                            label: "common.yesterday".localized,
+                            value: "\(yesterday)",
+                            color: color.opacity(0.7)
+                        )
+                    }
+                    if let avg = weeklyAvg {
+                        ComparisonTile(
+                            label: "sleep.7dayAvg".localized,
+                            value: "\(avg)",
+                            color: color
+                        )
+                    }
                 }
-            }
-            .padding(.horizontal, Theme.Spacing.sm)
+                .padding(.horizontal, Theme.Spacing.sm)
 
-            // Weekly chart
-            if !weeklyRecoveryScores.isEmpty {
-                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                    HStack {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .font(.system(size: Theme.IconSize.sm, weight: .semibold))
-                                .foregroundStyle(Theme.recovery)
-                            Text("ui.thisWeek".localized)
-                                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                // Weekly chart
+                if !weeklyRecoveryScores.isEmpty {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        HStack {
+                            HStack(spacing: Theme.Spacing.sm) {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .font(.system(size: Theme.IconSize.sm, weight: .semibold))
+                                    .foregroundStyle(Theme.recovery)
+                                Text("ui.thisWeek".localized)
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            }
+                            Spacer()
+                            if let avg = weeklyAvg {
+                                HStack(spacing: Theme.Spacing.xs) {
+                                    Text("ui.avg".localized)
+                                        .font(.system(.caption, design: .rounded))
+                                        .foregroundStyle(Theme.secondaryText)
+                                    Text("\(avg)")
+                                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                        .foregroundStyle(color)
+                                }
+                            }
                         }
-                        Spacer()
-                        if let avg = weeklyAvg {
-                            HStack(spacing: Theme.Spacing.xs) {
-                                Text("ui.avg".localized)
+                        Chart(weeklyRecoveryScores, id: \.date) { entry in
+                            if let score = entry.score {
+                                LineMark(
+                                    x: .value("Day", entry.day),
+                                    y: .value("Score", score)
+                                )
+                                .foregroundStyle(Theme.recovery)
+                                .lineStyle(StrokeStyle(lineWidth: 2))
+                                .interpolationMethod(.catmullRom)
+
+                                PointMark(
+                                    x: .value("Day", entry.day),
+                                    y: .value("Score", score)
+                                )
+                                .foregroundStyle(selectedChartDay == entry.day ? Theme.recovery : color)
+                                .symbolSize(selectedChartDay == entry.day ? 100 : 50)
+
+                                AreaMark(
+                                    x: .value("Day", entry.day),
+                                    y: .value("Score", score)
+                                )
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [Theme.recovery.opacity(0.15), Theme.recovery.opacity(0.0)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .interpolationMethod(.catmullRom)
+
+                                // Selection rule line
+                                if selectedChartDay == entry.day {
+                                    RuleMark(x: .value("Day", entry.day))
+                                        .foregroundStyle(Theme.recovery.opacity(0.3))
+                                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 2]))
+                                }
+                            }
+                        }
+                        .chartYScale(domain: 0...100)
+                        .chartXSelection(value: $selectedChartDay)
+                        .frame(height: 100)
+
+                        // Selected day detail
+                        if let entry = selectedChartEntry, let score = entry.score {
+                            HStack(spacing: Theme.Spacing.sm) {
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Theme.secondaryText)
+                                Text(entry.date.formatted(date: .abbreviated, time: .omitted))
                                     .font(.system(.caption, design: .rounded))
                                     .foregroundStyle(Theme.secondaryText)
-                                Text("\(avg)")
+                                Spacer()
+                                Text("\(score)")
                                     .font(.system(.subheadline, design: .rounded, weight: .bold))
                                     .foregroundStyle(color)
+                                Text(RecoveryScoreEngine.label(for: score))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(Theme.secondaryText)
                             }
+                            .padding(.horizontal, Theme.Spacing.sm)
+                            .padding(.vertical, Theme.Spacing.xs)
+                            .background(Theme.tertiaryBackground.opacity(0.5))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
                         }
-                    }
-                    Chart(weeklyRecoveryScores, id: \.date) { entry in
-                        if let score = entry.score {
-                            LineMark(
-                                x: .value("Day", entry.day),
-                                y: .value("Score", score)
-                            )
-                            .foregroundStyle(Theme.recovery)
-                            .lineStyle(StrokeStyle(lineWidth: 2))
-                            .interpolationMethod(.catmullRom)
-
-                            PointMark(
-                                x: .value("Day", entry.day),
-                                y: .value("Score", score)
-                            )
-                            .foregroundStyle(selectedChartDay == entry.day ? Theme.recovery : color)
-                            .symbolSize(selectedChartDay == entry.day ? 100 : 50)
-
-                            AreaMark(
-                                x: .value("Day", entry.day),
-                                y: .value("Score", score)
-                            )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Theme.recovery.opacity(0.15), Theme.recovery.opacity(0.0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .interpolationMethod(.catmullRom)
-
-                            // Selection rule line
-                            if selectedChartDay == entry.day {
-                                RuleMark(x: .value("Day", entry.day))
-                                    .foregroundStyle(Theme.recovery.opacity(0.3))
-                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 2]))
-                            }
-                        }
-                    }
-                    .chartYScale(domain: 0...100)
-                    .chartXSelection(value: $selectedChartDay)
-                    .frame(height: 100)
-
-                    // Selected day detail
-                    if let entry = selectedChartEntry, let score = entry.score {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "calendar")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Theme.secondaryText)
-                            Text(entry.date.formatted(date: .abbreviated, time: .omitted))
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(Theme.secondaryText)
-                            Spacer()
-                            Text("\(score)")
-                                .font(.system(.subheadline, design: .rounded, weight: .bold))
-                                .foregroundStyle(color)
-                            Text(RecoveryScoreEngine.label(for: score))
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(Theme.secondaryText)
-                        }
-                        .padding(.horizontal, Theme.Spacing.sm)
-                        .padding(.vertical, Theme.Spacing.xs)
-                        .background(Theme.tertiaryBackground.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
                     }
                 }
             }
+            .cardStyle()
 
-            // Daily Recovery Scores Section
+            // Daily Recovery Scores Section - separate card below
             if !weeklyRecoveryScores.isEmpty {
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     Text("recovery.dailyScores".localized)
@@ -229,7 +233,6 @@ struct RecoverySection: View {
                 .cardStyle()
             }
         }
-        .cardStyle()
         .sheet(item: $selectedDay) { summary in
             RecoveryDayDetailSheet(summary: summary)
         }
