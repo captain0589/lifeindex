@@ -45,6 +45,7 @@ class DashboardViewModel: ObservableObject {
 
     // Sleep section
     @Published var sleepMinutes: Double?
+    @Published var sleepStages: SleepStages?
 
     // Wellness
     @Published var mindfulMinutes: Double?
@@ -73,7 +74,11 @@ class DashboardViewModel: ObservableObject {
     @Published var isGeneratingDetailed = false
     @Published var supportsAI = false
 
+    // AI Insights History
+    @Published var insightHistory: [AIInsight] = []
+
     private var healthKitManager: HealthKitManager?
+    private let insightsService = InsightsService.shared
     private var lastLoadedAt: Date?
     private var isLoadInProgress = false
     private let cacheInterval: TimeInterval = 300 // 5 minutes
@@ -81,10 +86,10 @@ class DashboardViewModel: ObservableObject {
     var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 5..<12: return "Good Morning"
-        case 12..<17: return "Good Afternoon"
-        case 17..<22: return "Good Evening"
-        default: return "Good Night"
+        case 5..<12: return "greeting.morning".localized
+        case 12..<17: return "greeting.afternoon".localized
+        case 17..<22: return "greeting.evening".localized
+        default: return "greeting.night".localized
         }
     }
 
@@ -180,6 +185,7 @@ class DashboardViewModel: ObservableObject {
 
         // Sleep
         sleepMinutes = summary.metrics[.sleepDuration]
+        sleepStages = summary.sleepStages
 
         // Wellness
         mindfulMinutes = summary.metrics[.mindfulMinutes]
@@ -194,14 +200,24 @@ class DashboardViewModel: ObservableObject {
         // Weekly
         weeklyData = manager.weeklyData
 
-        // Historical scores (calculate final score for each day, no time scaling)
+        // Historical scores
+        // For today: use time-aware score (matches the main LifeIndex score)
+        // For past days: use final score (no time scaling)
+        let calendar = Calendar.current
         weeklyScores = manager.weeklyData.compactMap { day in
             guard !day.metrics.isEmpty else { return nil }
-            let score = LifeIndexScoreEngine.calculateFinalScore(from: day)
+            let isToday = calendar.isDateInToday(day.date)
+            let score: Int
+            if isToday && !showingYesterdayData {
+                // Use the same time-aware score as the main display
+                score = lifeIndexScore
+            } else {
+                // Past days use final score (full day evaluation)
+                score = LifeIndexScoreEngine.calculateFinalScore(from: day)
+            }
             return (date: day.date, score: score)
         }
         // Yesterday's score
-        let calendar = Calendar.current
         yesterdayScore = weeklyScores
             .first(where: { calendar.isDateInYesterday($0.date) })
             .map { $0.score }
@@ -227,6 +243,9 @@ class DashboardViewModel: ObservableObject {
         // AI Summary (Phase 7)
         checkAISupport()
         await generateShortSummary(from: summary)
+
+        // Auto-generate AI insight (stored in Core Data)
+        await autoGenerateInsight()
 
         isLoading = false
         isLoadInProgress = false
@@ -276,27 +295,27 @@ class DashboardViewModel: ObservableObject {
 
         switch score {
         case 90...100:
-            return "Outstanding day. All your metrics are in excellent shape."
+            return "score.explanation.outstanding".localized
         case 80..<90:
-            return "Most metrics are on track. A small push could get you to Excellent."
+            return "score.explanation.excellent".localized
         case 70..<80:
-            return "Solid effort today. Focus on your weaker areas to level up."
+            return "score.explanation.good".localized
         case 60..<70:
             return isMorning
-                ? "Your day is shaping up. Sleep and vitals look decent — keep building."
-                : "A decent day, but a couple areas could use a boost."
+                ? "score.explanation.fair.morning".localized
+                : "score.explanation.fair.evening".localized
         case 40..<60:
             return isMorning
-                ? "Still early — your sleep and vitals set the foundation. Activity will build through the day."
-                : "Some metrics are off today. Prioritize what you can still control."
+                ? "score.explanation.low.morning".localized
+                : "score.explanation.low.evening".localized
         case 20..<40:
             return isMorning
-                ? "Your day is just getting started. Focus on what's ahead, not what's missing yet."
-                : "Your body may need extra care today. Rest and recover."
+                ? "score.explanation.veryLow.morning".localized
+                : "score.explanation.veryLow.evening".localized
         default:
             return isMorning
-                ? "Good morning — your score will build as the day progresses."
-                : "Take it easy. Focus on the basics: sleep, hydration, movement."
+                ? "score.explanation.default.morning".localized
+                : "score.explanation.default.evening".localized
         }
     }
 
@@ -504,6 +523,40 @@ class DashboardViewModel: ObservableObject {
                 }
             }
             healthStore.execute(query)
+        }
+    }
+
+    // MARK: - AI Insights Auto-Generation
+
+    private func autoGenerateInsight() async {
+        // Build breakdown for InsightsService
+        let breakdown = scoreBreakdown.map { (type: $0.type, value: $0.value, score: $0.score) }
+
+        // Auto-generate today's insight
+        await insightsService.autoGenerateTodayInsight(
+            score: lifeIndexScore,
+            scoreLabel: scoreLabel,
+            scoreBreakdown: breakdown,
+            sleepMinutes: sleepMinutes,
+            sleepStages: sleepStages,
+            recoveryScore: recoveryScore,
+            steps: stepsValue,
+            activeCalories: caloriesValue,
+            restingHR: restingHeartRate
+        )
+
+        // Load insight history
+        insightsService.loadInsightHistory()
+        insightHistory = insightsService.insightHistory
+
+        // Update AI summary from stored insight if available
+        if let todayInsight = insightsService.todayInsight {
+            if aiShortSummary == nil || aiShortSummary?.isEmpty == true {
+                aiShortSummary = todayInsight.shortText
+            }
+            if let detailed = todayInsight.detailedText, !detailed.isEmpty {
+                aiDetailedSummary = detailed
+            }
         }
     }
 

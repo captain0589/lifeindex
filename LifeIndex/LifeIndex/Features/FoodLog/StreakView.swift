@@ -41,7 +41,7 @@ struct StreakView: View {
                 .padding(.bottom, 40)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Streaks & Missions")
+            .navigationTitle("streak.title".localized)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -57,6 +57,9 @@ struct StreakView: View {
         }
         .task {
             loadStreakData()
+        }
+        .onChange(of: selectedMonth) { _, _ in
+            loadMonthData()
         }
     }
 
@@ -163,7 +166,7 @@ private struct StreakHeroCard: View {
                         .font(.system(size: 64, weight: .bold, design: .rounded))
                         .foregroundStyle(Theme.primaryText)
 
-                    Text(currentStreak == 1 ? "Day Streak" : "Day Streak")
+                    Text("streak.dayStreak".localized)
                         .font(.system(.title3, design: .rounded, weight: .medium))
                         .foregroundStyle(Theme.secondaryText)
                 }
@@ -173,14 +176,14 @@ private struct StreakHeroCard: View {
             HStack(spacing: Theme.Spacing.xl) {
                 StatBubble(
                     value: "\(longestStreak)",
-                    label: "Best Streak",
+                    label: "streak.bestStreak".localized,
                     icon: "trophy.fill",
                     color: .yellow
                 )
 
                 StatBubble(
                     value: "\(totalDaysLogged)",
-                    label: "Total Days",
+                    label: "streak.totalDays".localized,
                     icon: "calendar.badge.checkmark",
                     color: .green
                 )
@@ -214,16 +217,16 @@ private struct StreakHeroCard: View {
 
     private var motivationalMessage: String {
         switch currentStreak {
-        case 0: return "Start your streak today! Log your first meal."
-        case 1: return "Great start! Keep it going tomorrow!"
-        case 2...6: return "You're building momentum! Keep it up!"
-        case 7...13: return "A full week! You're on fire!"
-        case 14...29: return "Two weeks strong! You're unstoppable!"
-        case 30...59: return "A whole month! Incredible dedication!"
-        case 60...89: return "Two months! You're a nutrition champion!"
-        case 90...179: return "Three months! This is now a lifestyle!"
-        case 180...364: return "Half a year! Absolutely legendary!"
-        default: return "Over a year! You're a true master!"
+        case 0: return "streak.motivation.0".localized
+        case 1: return "streak.motivation.1".localized
+        case 2...6: return "streak.motivation.week".localized
+        case 7...13: return "streak.motivation.fullWeek".localized
+        case 14...29: return "streak.motivation.twoWeeks".localized
+        case 30...59: return "streak.motivation.month".localized
+        case 60...89: return "streak.motivation.twoMonths".localized
+        case 90...179: return "streak.motivation.threeMonths".localized
+        case 180...364: return "streak.motivation.halfYear".localized
+        default: return "streak.motivation.year".localized
         }
     }
 }
@@ -297,7 +300,7 @@ private struct StreakCalendarCard: View {
         VStack(spacing: Theme.Spacing.md) {
             // Header
             HStack {
-                Text("Calendar")
+                Text("streak.calendar".localized)
                     .font(.system(.headline, design: .rounded, weight: .bold))
 
                 Spacer()
@@ -397,15 +400,21 @@ private struct CalendarDayCell: View {
                     .foregroundStyle(.white)
             } else if isToday {
                 Circle()
+                    .fill(Theme.tertiaryBackground)
+
+                Circle()
                     .stroke(Theme.calories, lineWidth: 2)
 
                 Text("\(calendar.component(.day, from: date))")
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(Theme.primaryText)
             } else {
+                Circle()
+                    .fill(isFuture ? Theme.tertiaryBackground.opacity(0.3) : Theme.tertiaryBackground)
+
                 Text("\(calendar.component(.day, from: date))")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(isFuture ? Theme.secondaryText.opacity(0.3) : Theme.secondaryText)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(isFuture ? Theme.secondaryText.opacity(0.4) : Theme.primaryText)
             }
         }
         .frame(height: 36)
@@ -422,73 +431,73 @@ private struct MissionsCard: View {
         [
             Mission(
                 id: "first_log",
-                title: "First Step",
-                description: "Log your first meal",
+                title: "mission.firstStep.title".localized,
+                description: "mission.firstStep.desc".localized,
                 icon: "star.fill",
                 color: .yellow,
                 progress: min(1, totalDaysLogged),
                 target: 1,
-                reward: "Welcome Badge"
+                reward: "mission.firstStep.reward".localized
             ),
             Mission(
                 id: "streak_3",
-                title: "Getting Started",
-                description: "Maintain a 3-day streak",
+                title: "mission.gettingStarted.title".localized,
+                description: "mission.gettingStarted.desc".localized,
                 icon: "flame.fill",
                 color: .orange,
                 progress: min(3, currentStreak),
                 target: 3,
-                reward: "Spark Badge"
+                reward: "mission.gettingStarted.reward".localized
             ),
             Mission(
                 id: "streak_7",
-                title: "Week Warrior",
-                description: "Maintain a 7-day streak",
+                title: "mission.weekWarrior.title".localized,
+                description: "mission.weekWarrior.desc".localized,
                 icon: "flame.fill",
                 color: .orange,
                 progress: min(7, currentStreak),
                 target: 7,
-                reward: "Fire Badge"
+                reward: "mission.weekWarrior.reward".localized
             ),
             Mission(
                 id: "streak_30",
-                title: "Monthly Master",
-                description: "Maintain a 30-day streak",
+                title: "mission.monthlyMaster.title".localized,
+                description: "mission.monthlyMaster.desc".localized,
                 icon: "flame.fill",
                 color: .red,
                 progress: min(30, currentStreak),
                 target: 30,
-                reward: "Inferno Badge"
+                reward: "mission.monthlyMaster.reward".localized
             ),
             Mission(
                 id: "total_10",
-                title: "Dedicated Logger",
-                description: "Log meals on 10 different days",
+                title: "mission.dedicatedLogger.title".localized,
+                description: "mission.dedicatedLogger.desc".localized,
                 icon: "calendar.badge.checkmark",
                 color: .green,
                 progress: min(10, totalDaysLogged),
                 target: 10,
-                reward: "Consistency Badge"
+                reward: "mission.dedicatedLogger.reward".localized
             ),
             Mission(
                 id: "total_50",
-                title: "Habit Builder",
-                description: "Log meals on 50 different days",
+                title: "mission.habitBuilder.title".localized,
+                description: "mission.habitBuilder.desc".localized,
                 icon: "calendar.badge.checkmark",
                 color: .green,
                 progress: min(50, totalDaysLogged),
                 target: 50,
-                reward: "Dedication Badge"
+                reward: "mission.habitBuilder.reward".localized
             ),
             Mission(
                 id: "streak_100",
-                title: "Century Club",
-                description: "Maintain a 100-day streak",
+                title: "mission.centuryClub.title".localized,
+                description: "mission.centuryClub.desc".localized,
                 icon: "crown.fill",
                 color: .purple,
                 progress: min(100, currentStreak),
                 target: 100,
-                reward: "Legend Badge"
+                reward: "mission.centuryClub.reward".localized
             ),
         ]
     }
@@ -500,7 +509,7 @@ private struct MissionsCard: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.purple)
 
-                Text("Missions")
+                Text("streak.missions".localized)
                     .font(.system(.headline, design: .rounded, weight: .bold))
 
                 Spacer()
@@ -603,12 +612,14 @@ private struct MissionRow: View {
 // MARK: - Streak Tips Card
 
 private struct StreakTipsCard: View {
-    private let tips = [
-        ("clock.badge.checkmark", "Log meals at the same time each day to build a habit"),
-        ("bell.badge", "Set reminders to never miss a day"),
-        ("photo.on.rectangle", "Take photos of your meals for easier logging"),
-        ("sparkles", "Use AI estimation for quick calorie tracking"),
-    ]
+    private var tips: [(String, String)] {
+        [
+            ("clock.badge.checkmark", "streak.tip.sameTime".localized),
+            ("bell.badge", "streak.tip.reminders".localized),
+            ("photo.on.rectangle", "streak.tip.photos".localized),
+            ("sparkles", "streak.tip.aiEstimate".localized),
+        ]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -617,7 +628,7 @@ private struct StreakTipsCard: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.yellow)
 
-                Text("Pro Tips")
+                Text("streak.proTips".localized)
                     .font(.system(.headline, design: .rounded, weight: .bold))
             }
 

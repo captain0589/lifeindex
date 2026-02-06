@@ -110,6 +110,25 @@ class CoreDataStack {
         saveContext()
     }
 
+    func updateFoodLog(_ log: FoodLog, name: String?, calories: Int, protein: Double, carbs: Double, fat: Double, imageFileName: String?) {
+        log.name = name
+        log.calories = Int32(calories)
+        log.protein = protein
+        log.carbs = carbs
+        log.fat = fat
+
+        // Handle image changes
+        if log.imageFileName != imageFileName {
+            // Delete old image if it exists
+            if let oldFileName = log.imageFileName {
+                FoodImageManager.shared.deleteImage(fileName: oldFileName)
+            }
+            log.imageFileName = imageFileName
+        }
+
+        saveContext()
+    }
+
     // MARK: - Daily Report
 
     @discardableResult
@@ -179,6 +198,126 @@ class CoreDataStack {
                 report.aiDetailedSummary = detailed
             }
             saveContext()
+        }
+    }
+
+    // MARK: - AI Insights
+
+    @discardableResult
+    func saveAIInsight(
+        date: Date,
+        type: InsightType,
+        shortText: String,
+        detailedText: String? = nil,
+        score: Int,
+        metrics: StoredMetrics? = nil
+    ) -> AIInsight {
+        let context = viewContext
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+
+        // Check if insight of this type already exists for this date
+        if let existing = fetchAIInsight(for: startOfDay, type: type) {
+            existing.shortText = shortText
+            existing.detailedText = detailedText
+            existing.score = Int16(score)
+            if let metrics = metrics {
+                existing.setMetrics(metrics)
+            }
+            saveContext()
+            return existing
+        }
+
+        // Create new insight
+        let insight = AIInsight(context: context)
+        insight.id = UUID()
+        insight.date = startOfDay
+        insight.type = type.rawValue
+        insight.shortText = shortText
+        insight.detailedText = detailedText
+        insight.score = Int16(score)
+        insight.createdAt = Date()
+        if let metrics = metrics {
+            insight.setMetrics(metrics)
+        }
+        saveContext()
+        return insight
+    }
+
+    func fetchAIInsight(for date: Date, type: InsightType) -> AIInsight? {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        let request: NSFetchRequest<AIInsight> = AIInsight.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date < %@ AND type == %@",
+            startOfDay as NSDate,
+            endOfDay as NSDate,
+            type.rawValue
+        )
+        request.fetchLimit = 1
+
+        do {
+            return try viewContext.fetch(request).first
+        } catch {
+            debugLog("Fetch AI insight error: \(error)")
+            return nil
+        }
+    }
+
+    func fetchAIInsights(for date: Date) -> [AIInsight] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        let request: NSFetchRequest<AIInsight> = AIInsight.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date < %@",
+            startOfDay as NSDate,
+            endOfDay as NSDate
+        )
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            debugLog("Fetch AI insights error: \(error)")
+            return []
+        }
+    }
+
+    func fetchAIInsightsForWeek(endingOn date: Date) -> [AIInsight] {
+        let calendar = Calendar.current
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))!
+        let startDate = calendar.date(byAdding: .day, value: -7, to: endOfDay)!
+
+        let request: NSFetchRequest<AIInsight> = AIInsight.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date < %@",
+            startDate as NSDate,
+            endOfDay as NSDate
+        )
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            debugLog("Fetch weekly AI insights error: \(error)")
+            return []
+        }
+    }
+
+    func fetchRecentAIInsights(limit: Int = 14) -> [AIInsight] {
+        let request: NSFetchRequest<AIInsight> = AIInsight.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        request.fetchLimit = limit
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            debugLog("Fetch recent AI insights error: \(error)")
+            return []
         }
     }
 }

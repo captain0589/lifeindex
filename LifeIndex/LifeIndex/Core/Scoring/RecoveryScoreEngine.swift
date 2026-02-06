@@ -48,10 +48,10 @@ struct RecoveryScoreEngine {
 
     static func label(for score: Int) -> String {
         switch score {
-        case 80...100: return "Fully Recovered"
-        case 60..<80: return "Mostly Recovered"
-        case 40..<60: return "Partially Recovered"
-        default: return "Rest Recommended"
+        case 80...100: return "recoveryLabel.fullyRecovered".localized
+        case 60..<80: return "recoveryLabel.mostlyRecovered".localized
+        case 40..<60: return "recoveryLabel.partiallyRecovered".localized
+        default: return "recoveryLabel.restRecommended".localized
         }
     }
 

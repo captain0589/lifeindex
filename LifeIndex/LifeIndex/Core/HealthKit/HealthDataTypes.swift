@@ -18,15 +18,15 @@ enum HealthMetricType: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .steps: return "Steps"
-        case .heartRate: return "Heart Rate"
-        case .heartRateVariability: return "HRV"
-        case .restingHeartRate: return "Resting HR"
-        case .bloodOxygen: return "Blood Oxygen"
-        case .activeCalories: return "Active Calories"
-        case .sleepDuration: return "Sleep"
-        case .mindfulMinutes: return "Mindfulness"
-        case .workoutMinutes: return "Workouts"
+        case .steps: return "metric.steps".localized
+        case .heartRate: return "metric.heartRate".localized
+        case .heartRateVariability: return "metric.hrv".localized
+        case .restingHeartRate: return "metric.restingHR".localized
+        case .bloodOxygen: return "metric.bloodOxygen".localized
+        case .activeCalories: return "metric.activeCalories".localized
+        case .sleepDuration: return "metric.sleep".localized
+        case .mindfulMinutes: return "metric.mindfulness".localized
+        case .workoutMinutes: return "metric.workouts".localized
         }
     }
 
@@ -121,6 +121,56 @@ struct HealthDataPoint: Identifiable {
     }
 }
 
+// MARK: - Sleep Stages Data
+
+struct SleepStages {
+    var awakeMinutes: Double = 0
+    var remMinutes: Double = 0
+    var coreMinutes: Double = 0
+    var deepMinutes: Double = 0
+
+    var totalAsleepMinutes: Double {
+        remMinutes + coreMinutes + deepMinutes
+    }
+
+    var totalMinutes: Double {
+        awakeMinutes + totalAsleepMinutes
+    }
+
+    var awakePercent: Int {
+        guard totalMinutes > 0 else { return 0 }
+        return Int((awakeMinutes / totalMinutes) * 100)
+    }
+
+    var remPercent: Int {
+        guard totalMinutes > 0 else { return 0 }
+        return Int((remMinutes / totalMinutes) * 100)
+    }
+
+    var corePercent: Int {
+        guard totalMinutes > 0 else { return 0 }
+        return Int((coreMinutes / totalMinutes) * 100)
+    }
+
+    var deepPercent: Int {
+        guard totalMinutes > 0 else { return 0 }
+        return Int((deepMinutes / totalMinutes) * 100)
+    }
+
+    var hasStageData: Bool {
+        remMinutes > 0 || coreMinutes > 0 || deepMinutes > 0
+    }
+
+    func formattedDuration(_ minutes: Double) -> String {
+        let hours = Int(minutes) / 60
+        let mins = Int(minutes) % 60
+        if hours > 0 {
+            return "\(hours)hr \(mins)min"
+        }
+        return "\(mins)min"
+    }
+}
+
 // MARK: - Daily Health Summary
 
 struct DailyHealthSummary: Identifiable {
@@ -128,6 +178,7 @@ struct DailyHealthSummary: Identifiable {
     let date: Date
     var metrics: [HealthMetricType: Double]
     var lifeIndexScore: Int?
+    var sleepStages: SleepStages?
 
     func value(for metric: HealthMetricType) -> Double? {
         metrics[metric]
@@ -148,17 +199,17 @@ struct WorkoutData: Identifiable {
 
     var displayName: String {
         switch type {
-        case .running: return "Running"
-        case .cycling: return "Cycling"
-        case .swimming: return "Swimming"
-        case .walking: return "Walking"
-        case .hiking: return "Hiking"
-        case .yoga: return "Yoga"
-        case .functionalStrengthTraining: return "Strength Training"
-        case .highIntensityIntervalTraining: return "HIIT"
-        case .coreTraining: return "Core Training"
-        case .flexibility: return "Flexibility"
-        default: return "Workout"
+        case .running: return "workout.type.running".localized
+        case .cycling: return "workout.type.cycling".localized
+        case .swimming: return "workout.type.swimming".localized
+        case .walking: return "workout.type.walking".localized
+        case .hiking: return "workout.type.hiking".localized
+        case .yoga: return "workout.type.yoga".localized
+        case .functionalStrengthTraining: return "workout.type.strength".localized
+        case .highIntensityIntervalTraining: return "workout.type.hiit".localized
+        case .coreTraining: return "workout.type.core".localized
+        case .flexibility: return "workout.type.flexibility".localized
+        default: return "workout.type.default".localized
         }
     }
 

@@ -11,6 +11,7 @@ struct FoodView: View {
     @State private var selectedDate: Date = .now
     @State private var currentStreak: Int = 0
     @State private var showStreakView = false
+    @State private var selectedLogForEdit: FoodLog?
 
     // Profile-based goal
     @AppStorage("dailyCalorieGoal") private var dailyCalorieGoal: Int = 2000
@@ -101,7 +102,7 @@ struct FoodView: View {
                                         .font(.system(size: 20, weight: .medium, design: .rounded))
                                         .foregroundStyle(Theme.secondaryText)
                                 }
-                                Text("Calories eaten")
+                                Text("food.caloriesEaten".localized)
                                     .font(.system(.subheadline, design: .rounded))
                                     .foregroundStyle(Theme.secondaryText)
                             }
@@ -137,28 +138,28 @@ struct FoodView: View {
                     // MARK: - Macro Cards
                     HStack(spacing: Theme.Spacing.md) {
                         MacroCard(
-                            label: "Protein",
+                            labelKey: "food.protein",
                             current: todayProtein,
                             target: Double(macroTargets.protein),
-                            unit: "g",
+                            unit: "food.grams".localized,
                             color: .red.opacity(0.8),
                             icon: "p.circle.fill"
                         )
 
                         MacroCard(
-                            label: "Carbs",
+                            labelKey: "food.carbs",
                             current: todayCarbs,
                             target: Double(macroTargets.carbs),
-                            unit: "g",
+                            unit: "food.grams".localized,
                             color: .orange,
                             icon: "c.circle.fill"
                         )
 
                         MacroCard(
-                            label: "Fat",
+                            labelKey: "food.fat",
                             current: todayFat,
                             target: Double(macroTargets.fat),
-                            unit: "g",
+                            unit: "food.grams".localized,
                             color: .blue,
                             icon: "f.circle.fill"
                         )
@@ -168,12 +169,12 @@ struct FoodView: View {
                     // MARK: - Today's Meals / Diary
                     VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                         HStack {
-                            Text("Diary")
+                            Text("food.diary".localized)
                                 .font(.system(.title3, design: .rounded, weight: .bold))
                             Spacer()
                             if !todayLogs.isEmpty {
                                 let totalCal = todayLogs.reduce(0) { $0 + Int($1.calories) }
-                                Text("\(totalCal) kcal")
+                                Text("\(totalCal) " + "units.kcal".localized)
                                     .font(.system(.subheadline, design: .rounded, weight: .bold))
                                     .foregroundStyle(Theme.calories)
                             }
@@ -182,9 +183,9 @@ struct FoodView: View {
                         if todayLogs.isEmpty {
                             VStack(spacing: Theme.Spacing.md) {
                                 Image(systemName: "fork.knife.circle")
-                                    .font(.system(size: 40))
+                                    .font(.system(size: Theme.FontSize.display))
                                     .foregroundStyle(Theme.secondaryText.opacity(0.5))
-                                Text("No meals logged")
+                                Text("food.noMealsLogged".localized)
                                     .font(.system(.subheadline, design: .rounded))
                                     .foregroundStyle(Theme.secondaryText)
                             }
@@ -193,7 +194,12 @@ struct FoodView: View {
                         } else {
                             // Show all food items without meal type headers
                             ForEach(todayLogs) { log in
-                                FoodItemRow(log: log)
+                                Button {
+                                    selectedLogForEdit = log
+                                } label: {
+                                    FoodItemRow(log: log)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -202,18 +208,12 @@ struct FoodView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .padding(.horizontal)
 
-                    // MARK: - Calories Burned This Week (moved to bottom)
-                    if !healthKitManager.weeklyData.isEmpty {
-                        CaloriesBurnedWeeklyCard(data: healthKitManager.weeklyData)
-                            .padding(.horizontal)
-                    }
-
                     Spacer(minLength: 80)
                 }
                 .padding(.top, Theme.Spacing.md)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Calories")
+            .pageBackground(showGradient: true, gradientHeight: 300)
+            .navigationTitle("food.title".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -250,6 +250,11 @@ struct FoodView: View {
                     FoodLogSheet(viewModel: foodLogVM, isPresented: $showFoodLog)
                 }
             }
+            .sheet(item: $selectedLogForEdit, onDismiss: {
+                refreshData()
+            }) { log in
+                FoodEditSheet(log: log)
+            }
         }
         .task {
             if nutritionManager == nil {
@@ -263,8 +268,8 @@ struct FoodView: View {
                 do {
                     try await nm.requestAuthorization()
                 } catch {}
-                await nm.fetchTodayConsumedCalories()
-                consumedCalories = nm.todayConsumedCalories
+                // Note: We prioritize Core Data food logs over HealthKit
+                // HealthKit is only used for external entries not tracked in our app
             }
             // Fetch weekly data for the calories burned chart
             await healthKitManager.fetchWeeklyData()
@@ -279,17 +284,9 @@ struct FoodView: View {
 
     private func refreshData() {
         todayLogs = CoreDataStack.shared.fetchFoodLogs(for: selectedDate)
-        if let nm = nutritionManager {
-            Task {
-                await nm.fetchTodayConsumedCalories()
-                if Calendar.current.isDateInToday(selectedDate) {
-                    consumedCalories = nm.todayConsumedCalories
-                } else {
-                    let logsCalories = todayLogs.reduce(0) { $0 + Int($1.calories) }
-                    consumedCalories = Double(logsCalories)
-                }
-            }
-        }
+        // Calculate consumed calories from local Core Data logs (source of truth for app-tracked food)
+        let logsCalories = todayLogs.reduce(0) { $0 + Int($1.calories) }
+        consumedCalories = Double(logsCalories)
     }
 }
 
@@ -359,7 +356,7 @@ private struct WeekDaySelector: View {
 // MARK: - Macro Card
 
 private struct MacroCard: View {
-    let label: String
+    let labelKey: String
     let current: Double
     let target: Double
     let unit: String
@@ -369,6 +366,15 @@ private struct MacroCard: View {
     private var progress: Double {
         guard target > 0 else { return 0 }
         return min(1.0, current / target)
+    }
+
+    private var localizedEatenLabel: String {
+        switch labelKey {
+        case "food.protein": return "food.proteinEaten".localized
+        case "food.carbs": return "food.carbsEaten".localized
+        case "food.fat": return "food.fatEaten".localized
+        default: return labelKey.localized
+        }
     }
 
     var body: some View {
@@ -382,7 +388,7 @@ private struct MacroCard: View {
                     .foregroundStyle(Theme.secondaryText)
             }
 
-            Text("\(label) eaten")
+            Text(localizedEatenLabel)
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(Theme.secondaryText)
 
@@ -416,6 +422,37 @@ private struct GoalSettingsCard: View {
     @Binding var dailyGoal: Int
     let calculatedGoal: Int
     @State private var isExpanded = false
+    @State private var showConfirmation = false
+
+    // Profile data for calculation breakdown
+    @AppStorage("userAge") private var userAge: Int = 25
+    @AppStorage("userWeightKg") private var userWeightKg: Double = 70
+    @AppStorage("userHeightCm") private var userHeightCm: Double = 170
+    @AppStorage("userGender") private var userGender: Int = 0
+    @AppStorage("userActivityLevel") private var userActivityLevel: Int = 2
+    @AppStorage("userGoalType") private var userGoalType: Int = 1
+
+    private var bmr: Int {
+        Int(NutritionEngine.bmr(weightKg: userWeightKg, heightCm: userHeightCm, age: userAge, isMale: userGender == 0))
+    }
+
+    private var tdee: Int {
+        let b = NutritionEngine.bmr(weightKg: userWeightKg, heightCm: userHeightCm, age: userAge, isMale: userGender == 0)
+        return Int(NutritionEngine.tdee(bmr: b, activityLevel: userActivityLevel))
+    }
+
+    private var goalAdjustment: Int {
+        let goal = NutritionEngine.GoalType(rawValue: userGoalType) ?? .maintain
+        return goal.calorieAdjustment
+    }
+
+    private var activityLevel: NutritionEngine.ActivityLevel {
+        NutritionEngine.ActivityLevel(rawValue: userActivityLevel) ?? .moderate
+    }
+
+    private var goalType: NutritionEngine.GoalType {
+        NutritionEngine.GoalType(rawValue: userGoalType) ?? .maintain
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -426,14 +463,14 @@ private struct GoalSettingsCard: View {
             } label: {
                 HStack {
                     Image(systemName: "target")
-                        .font(.system(size: 16))
+                        .font(.system(size: Theme.IconSize.md))
                         .foregroundStyle(Theme.calories)
-                    Text("Daily Goal: \(dailyGoal) kcal")
+                    Text("food.dailyGoal".localized + ": \(dailyGoal) " + "units.kcal".localized)
                         .font(.system(.subheadline, design: .rounded, weight: .medium))
                         .foregroundStyle(Theme.primaryText)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: Theme.IconSize.xs, weight: .semibold))
                         .foregroundStyle(Theme.secondaryText)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
@@ -445,8 +482,34 @@ private struct GoalSettingsCard: View {
                     .padding(.horizontal)
 
                 VStack(spacing: Theme.Spacing.md) {
+                    // Calculation breakdown
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("Recommended: \(calculatedGoal) " + "units.kcal".localized)
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(Theme.calories)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            CalcBreakdownRow(label: "BMR", value: "\(bmr)", detail: "Base metabolism")
+                            CalcBreakdownRow(label: "× Activity", value: String(format: "%.2f", activityLevel.multiplier), detail: activityLevel.localizedName)
+                            CalcBreakdownRow(label: "= TDEE", value: "\(tdee)", detail: "Daily energy")
+                            if goalAdjustment != 0 {
+                                CalcBreakdownRow(
+                                    label: goalAdjustment > 0 ? "+ Surplus" : "− Deficit",
+                                    value: "\(abs(goalAdjustment))",
+                                    detail: goalType.localizedName
+                                )
+                            }
+                        }
+                        .padding(Theme.Spacing.sm)
+                        .background(Theme.tertiaryBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.xs, style: .continuous))
+                    }
+
+                    Divider()
+
+                    // Manual goal input
                     HStack {
-                        Text("Calorie Goal")
+                        Text("food.dailyGoal".localized)
                             .font(.system(.subheadline, design: .rounded))
                         Spacer()
                         HStack(spacing: Theme.Spacing.xs) {
@@ -455,25 +518,25 @@ private struct GoalSettingsCard: View {
                                 .multilineTextAlignment(.trailing)
                                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
                                 .frame(width: 60)
-                            Text("kcal")
+                            Text("units.kcal".localized)
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Theme.secondaryText)
                         }
                     }
 
                     Button {
-                        dailyGoal = calculatedGoal
+                        showConfirmation = true
                     } label: {
                         HStack {
                             Image(systemName: "sparkles")
-                            Text("Use Recommended (\(calculatedGoal) kcal)")
+                            Text("food.useRecommended".localized + " (\(calculatedGoal) " + "units.kcal".localized + ")")
                         }
                         .font(.system(.subheadline, design: .rounded, weight: .medium))
                         .foregroundStyle(Theme.calories)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Theme.Spacing.sm)
                         .background(Theme.calories.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm, style: .continuous))
                     }
                 }
                 .padding(Theme.Spacing.md)
@@ -481,6 +544,38 @@ private struct GoalSettingsCard: View {
         }
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .alert("Update Daily Goal?", isPresented: $showConfirmation) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("Confirm") {
+                dailyGoal = calculatedGoal
+            }
+        } message: {
+            Text("This will change your daily calorie goal from \(dailyGoal) to \(calculatedGoal) kcal. Your tracking data will remain, but progress will be calculated against the new goal.")
+        }
+    }
+}
+
+// MARK: - Calculation Breakdown Row
+
+private struct CalcBreakdownRow: View {
+    let label: String
+    let value: String
+    let detail: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(Theme.secondaryText)
+                .frame(width: 70, alignment: .leading)
+            Text(value)
+                .font(.system(.caption, design: .rounded, weight: .bold))
+                .foregroundStyle(Theme.primaryText)
+            Text(detail)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Theme.secondaryText)
+            Spacer()
+        }
     }
 }
 
@@ -578,11 +673,11 @@ private struct FoodItemRow: View {
                 }
 
                 // Calories row
-                HStack(spacing: 4) {
+                HStack(spacing: Theme.Spacing.xs) {
                     Image(systemName: "flame.fill")
-                        .font(.system(size: 12))
+                        .font(.system(size: Theme.IconSize.xs))
                         .foregroundStyle(Theme.calories)
-                    Text("\(log.calories) kcal")
+                    Text("\(log.calories) " + "units.kcal".localized)
                         .font(.system(.subheadline, design: .rounded, weight: .medium))
                         .foregroundStyle(Theme.calories)
                 }
@@ -590,9 +685,9 @@ private struct FoodItemRow: View {
                 // Macros row (if available)
                 if log.protein > 0 || log.carbs > 0 || log.fat > 0 {
                     HStack(spacing: Theme.Spacing.md) {
-                        MacroLabel(icon: "bolt.fill", value: Int(log.protein), unit: "g", color: .pink)
-                        MacroLabel(icon: "leaf.fill", value: Int(log.carbs), unit: "g", color: .orange)
-                        MacroLabel(icon: "drop.fill", value: Int(log.fat), unit: "g", color: .blue)
+                        MacroLabel(icon: "bolt.fill", value: Int(log.protein), unit: "food.grams".localized, color: .pink)
+                        MacroLabel(icon: "leaf.fill", value: Int(log.carbs), unit: "food.grams".localized, color: .orange)
+                        MacroLabel(icon: "drop.fill", value: Int(log.fat), unit: "food.grams".localized, color: .blue)
                     }
                 }
             }
@@ -625,6 +720,260 @@ private struct MacroLabel: View {
                 .font(.system(.caption2, design: .rounded, weight: .medium))
                 .foregroundStyle(Theme.secondaryText)
         }
+    }
+}
+
+// MARK: - Food Edit Sheet
+
+struct FoodEditSheet: View {
+    let log: FoodLog
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String = ""
+    @State private var caloriesText: String = ""
+    @State private var proteinText: String = ""
+    @State private var carbsText: String = ""
+    @State private var fatText: String = ""
+    @State private var selectedImage: UIImage?
+    @State private var showDeleteConfirmation = false
+    @State private var showCamera = false
+
+    private var canSave: Bool {
+        guard let cal = Int(caloriesText) else { return false }
+        return cal > 0 && cal <= 9999
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: Theme.Spacing.xl) {
+                    // MARK: - Food Name
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("food.whatDidYouEat".localized)
+                            .font(Theme.headline)
+
+                        TextField("food.placeholder".localized, text: $name)
+                            .font(.system(.body, design: .rounded))
+                            .padding(Theme.Spacing.md)
+                            .background(Theme.tertiaryBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
+                    }
+
+                    // MARK: - Photo
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("food.addPhoto".localized)
+                            .font(Theme.headline)
+
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Button {
+                                showCamera = true
+                            } label: {
+                                HStack(spacing: Theme.Spacing.xs) {
+                                    Image(systemName: "camera.fill")
+                                    Text("Take Photo")
+                                }
+                                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                                .padding(.horizontal, Theme.Spacing.md)
+                                .padding(.vertical, Theme.Spacing.sm)
+                                .background(Theme.tertiaryBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
+                            }
+
+                            Spacer()
+
+                            if selectedImage != nil {
+                                Button {
+                                    selectedImage = nil
+                                } label: {
+                                    HStack(spacing: Theme.Spacing.xs) {
+                                        Image(systemName: "xmark.circle.fill")
+                                        Text("food.removePhoto".localized)
+                                    }
+                                    .font(.system(.caption, design: .rounded, weight: .medium))
+                                    .foregroundStyle(Theme.error)
+                                }
+                            }
+                        }
+
+                        // Photo preview
+                        if let image = selectedImage {
+                            RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                                .fill(Theme.tertiaryBackground)
+                                .frame(height: 200)
+                                .frame(maxWidth: .infinity)
+                                .overlay {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
+                                        .padding(Theme.Spacing.sm)
+                                }
+                        }
+                    }
+                    .fullScreenCover(isPresented: $showCamera) {
+                        CameraView(image: $selectedImage)
+                            .ignoresSafeArea()
+                    }
+
+                    // MARK: - Calories
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("food.calories".localized)
+                            .font(Theme.headline)
+
+                        HStack {
+                            TextField("0", text: $caloriesText)
+                                .keyboardType(.numberPad)
+                                .font(.system(.title, design: .rounded, weight: .bold))
+                            Text("units.kcal".localized)
+                                .font(.system(.title3, design: .rounded))
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+                        .padding(Theme.Spacing.md)
+                        .background(Theme.tertiaryBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
+                    }
+
+                    // MARK: - Macros
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("food.macrosOptional".localized)
+                            .font(Theme.headline)
+
+                        HStack(spacing: Theme.Spacing.sm) {
+                            EditMacroField(labelKey: "food.protein", text: $proteinText, color: .blue)
+                            EditMacroField(labelKey: "food.carbs", text: $carbsText, color: .orange)
+                            EditMacroField(labelKey: "food.fat", text: $fatText, color: .pink)
+                        }
+                    }
+
+                    // MARK: - Delete Button
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("common.delete".localized)
+                        }
+                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Theme.Spacing.md)
+                        .background(Theme.error)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous))
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Edit Food")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        saveChanges()
+                    } label: {
+                        Text("common.save".localized)
+                            .font(.system(.body, design: .rounded, weight: .semibold))
+                    }
+                    .disabled(!canSave)
+                }
+            }
+            .alert("Delete Entry?", isPresented: $showDeleteConfirmation) {
+                Button("common.cancel".localized, role: .cancel) { }
+                Button("common.delete".localized, role: .destructive) {
+                    deleteEntry()
+                }
+            } message: {
+                Text("This will permanently delete this food entry.")
+            }
+        }
+        .onAppear {
+            loadLogData()
+        }
+    }
+
+    private func loadLogData() {
+        name = log.name ?? ""
+        caloriesText = "\(log.calories)"
+        proteinText = log.protein > 0 ? "\(Int(log.protein))" : ""
+        carbsText = log.carbs > 0 ? "\(Int(log.carbs))" : ""
+        fatText = log.fat > 0 ? "\(Int(log.fat))" : ""
+
+        // Load existing image
+        if let fileName = log.imageFileName {
+            selectedImage = FoodImageManager.shared.loadImage(fileName: fileName)
+        }
+    }
+
+    private func saveChanges() {
+        guard let calories = Int(caloriesText), canSave else { return }
+
+        // Save new image if changed
+        var imageFileName = log.imageFileName
+        if let newImage = selectedImage {
+            // Check if image actually changed
+            let existingImage = log.imageFileName.flatMap { FoodImageManager.shared.loadImage(fileName: $0) }
+            if existingImage?.pngData() != newImage.pngData() {
+                imageFileName = FoodImageManager.shared.saveImage(newImage)
+            }
+        } else if selectedImage == nil && log.imageFileName != nil {
+            // Image was removed
+            imageFileName = nil
+        }
+
+        CoreDataStack.shared.updateFoodLog(
+            log,
+            name: name.isEmpty ? nil : name,
+            calories: calories,
+            protein: Double(proteinText) ?? 0,
+            carbs: Double(carbsText) ?? 0,
+            fat: Double(fatText) ?? 0,
+            imageFileName: imageFileName
+        )
+
+        dismiss()
+    }
+
+    private func deleteEntry() {
+        CoreDataStack.shared.deleteFoodLog(log)
+        dismiss()
+    }
+}
+
+// MARK: - Edit Macro Field
+
+private struct EditMacroField: View {
+    let labelKey: String
+    @Binding var text: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            Text(labelKey.localized)
+                .font(.system(.caption2, design: .rounded, weight: .medium))
+                .foregroundStyle(color)
+            HStack(spacing: 2) {
+                TextField("0", text: $text)
+                    .keyboardType(.decimalPad)
+                    .font(.system(.body, design: .rounded, weight: .semibold))
+                    .multilineTextAlignment(.center)
+                Text("food.grams".localized)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+            }
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, Theme.Spacing.xs)
+            .background(Theme.tertiaryBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.xs))
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -688,10 +1037,6 @@ private struct StreakBadge: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(streak > 0 ? Color.orange.opacity(0.15) : Color.gray.opacity(0.1))
-        )
         .onAppear {
             if streak > 0 {
                 isAnimating = true
@@ -735,7 +1080,7 @@ struct CaloriesBurnedWeeklyCard: View {
                     Image(systemName: "flame.fill")
                         .font(.system(size: Theme.IconSize.sm, weight: .semibold))
                         .foregroundStyle(Theme.calories)
-                    Text("Calories Burned")
+                    Text("activity.caloriesBurned".localized)
                         .font(.system(.headline, design: .rounded, weight: .bold))
                 }
 
@@ -747,7 +1092,7 @@ struct CaloriesBurnedWeeklyCard: View {
                         Text(day)
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Theme.secondaryText)
-                        Text("\(Int(cal)) kcal")
+                        Text("\(Int(cal)) " + "units.kcal".localized)
                             .font(.system(.subheadline, design: .rounded, weight: .bold))
                             .foregroundStyle(Theme.calories)
                     }
@@ -758,14 +1103,14 @@ struct CaloriesBurnedWeeklyCard: View {
             // Today's stats row
             HStack(spacing: Theme.Spacing.lg) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Today")
+                    Text("common.today".localized)
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Theme.secondaryText)
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
                         Text("\(todayCalories)")
                             .font(.system(.title2, design: .rounded, weight: .bold))
                             .foregroundStyle(Theme.calories)
-                        Text("kcal")
+                        Text("units.kcal".localized)
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Theme.secondaryText)
                     }
@@ -775,14 +1120,14 @@ struct CaloriesBurnedWeeklyCard: View {
                     .frame(height: 30)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Weekly Avg")
+                    Text("common.weeklyAvg".localized)
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(Theme.secondaryText)
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
                         Text("\(weeklyAverage)")
                             .font(.system(.title2, design: .rounded, weight: .bold))
                             .foregroundStyle(Theme.secondaryText)
-                        Text("kcal")
+                        Text("units.kcal".localized)
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Theme.secondaryText)
                     }

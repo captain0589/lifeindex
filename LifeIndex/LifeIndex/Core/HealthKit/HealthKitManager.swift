@@ -228,10 +228,12 @@ class HealthKitManager: ObservableObject {
         async let bloodOxygen = Self.fetchLatestSampleOffMain(healthStore: healthStore, type: .oxygenSaturation, unit: .percent(), start: startOfDay, end: endOfDay)
 
         async let sleep = Self.fetchSleepOffMain(healthStore: healthStore, start: startOfDay, end: endOfDay)
+        async let sleepStages = Self.fetchSleepStagesOffMain(healthStore: healthStore, start: startOfDay, end: endOfDay)
         async let mindful = Self.fetchMindfulOffMain(healthStore: healthStore, start: startOfDay, end: endOfDay)
         async let workoutMins = Self.fetchWorkoutMinutesOffMain(healthStore: healthStore, start: startOfDay, end: endOfDay)
 
         let r = await (steps, calories, heartRate, hrv, restingHR, bloodOxygen, sleep, mindful, workoutMins)
+        let stages = await sleepStages
 
         // Log raw API responses
         debugLog("[LifeIndex] ───────────────────────────────────────────────────────────")
@@ -270,8 +272,9 @@ class HealthKitManager: ObservableObject {
 
         debugLog("[LifeIndex] ───────────────────────────────────────────────────────────")
         debugLog("[LifeIndex] FINAL METRICS MAP: \(metrics.mapValues { String(format: "%.1f", $0) })")
+        debugLog("[LifeIndex] SLEEP STAGES: Awake=\(String(format: "%.0f", stages.awakeMinutes))min, REM=\(String(format: "%.0f", stages.remMinutes))min, Core=\(String(format: "%.0f", stages.coreMinutes))min, Deep=\(String(format: "%.0f", stages.deepMinutes))min")
         debugLog("[LifeIndex] ═══════════════════════════════════════════════════════════")
-        todaySummary = DailyHealthSummary(date: .now, metrics: metrics)
+        todaySummary = DailyHealthSummary(date: .now, metrics: metrics, sleepStages: stages.hasStageData ? stages : nil)
     }
 
     // MARK: - Fetch Weekly Data
@@ -292,8 +295,10 @@ class HealthKitManager: ObservableObject {
             async let hr = Self.fetchHeartRateOffMain(healthStore: healthStore, start: startOfDay, end: endOfDay)
             async let cal = Self.fetchSumOffMain(healthStore: healthStore, type: .activeEnergyBurned, unit: .kilocalorie(), start: startOfDay, end: endOfDay)
             async let sleep = Self.fetchSleepOffMain(healthStore: healthStore, start: startOfDay, end: endOfDay)
+            async let sleepStages = Self.fetchSleepStagesOffMain(healthStore: healthStore, start: startOfDay, end: endOfDay)
 
             let r = await (steps, hr, cal, sleep)
+            let stages = await sleepStages
             if let v = r.0 { metrics[.steps] = v }
             if let v = r.1 { metrics[.heartRate] = v }
             if let v = r.2 { metrics[.activeCalories] = v }
@@ -305,7 +310,7 @@ class HealthKitManager: ObservableObject {
                 if let c = wf.calories { metrics[.activeCalories] = c }
             }
 
-            dailySummaries.append(DailyHealthSummary(date: startOfDay, metrics: metrics))
+            dailySummaries.append(DailyHealthSummary(date: startOfDay, metrics: metrics, sleepStages: stages.hasStageData ? stages : nil))
         }
 
         weeklyData = dailySummaries
@@ -687,6 +692,56 @@ class HealthKitManager: ObservableObject {
             .reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) / 60.0 }
 
         return inBedMinutes > 0 ? inBedMinutes : nil
+    }
+
+    /// Sleep Stages: detailed breakdown of sleep phases
+    nonisolated private static func fetchSleepStagesOffMain(
+        healthStore: HKHealthStore,
+        start: Date,
+        end: Date
+    ) async -> SleepStages {
+        let sleepType = HKCategoryType(.sleepAnalysis)
+        // Look back 12 hours — sleep that started the previous evening
+        let adjustedStart = Calendar.current.date(byAdding: .hour, value: -12, to: start) ?? start
+        let predicate = HKQuery.predicateForSamples(withStart: adjustedStart, end: end, options: .strictStartDate)
+
+        let samples: [HKSample] = await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, _ in
+                continuation.resume(returning: samples ?? [])
+            }
+            healthStore.execute(query)
+        }
+
+        let categorySamples = samples.compactMap { $0 as? HKCategorySample }
+
+        var stages = SleepStages()
+
+        for sample in categorySamples {
+            let minutes = sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+
+            switch sample.value {
+            case HKCategoryValueSleepAnalysis.awake.rawValue:
+                stages.awakeMinutes += minutes
+            case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
+                stages.remMinutes += minutes
+            case HKCategoryValueSleepAnalysis.asleepCore.rawValue:
+                stages.coreMinutes += minutes
+            case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
+                stages.deepMinutes += minutes
+            case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
+                // If no stage data, count as core (light) sleep
+                stages.coreMinutes += minutes
+            default:
+                break // Ignore inBed and other values for stages
+            }
+        }
+
+        return stages
     }
 
     nonisolated private static func fetchMindfulOffMain(

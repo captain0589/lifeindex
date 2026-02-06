@@ -1,0 +1,577 @@
+/*
+  Localizable.strings (English)
+  LifeIndex
+*/
+
+// MARK: - Common
+"common.cancel" = "Cancel";
+"common.save" = "Save";
+"common.done" = "Done";
+"common.edit" = "Edit";
+"common.delete" = "Delete";
+"common.ok" = "OK";
+"common.yes" = "Yes";
+"common.no" = "No";
+"common.loading" = "Loading...";
+"common.error" = "Error";
+"common.success" = "Success";
+"common.today" = "Today";
+"common.yesterday" = "Yesterday";
+"common.thisWeek" = "This Week";
+"common.weeklyAvg" = "Weekly Avg";
+
+// MARK: - Tabs
+"tab.home" = "Home";
+"tab.sleep" = "Sleep";
+"tab.fitness" = "Fitness";
+"tab.food" = "Food";
+"tab.wellness" = "Mood";
+"tab.mood" = "Mood";
+"tab.settings" = "Settings";
+
+// MARK: - Dashboard
+"dashboard.greeting" = "Hello";
+"dashboard.todayScore" = "Today's Score";
+"dashboard.viewScoreDetails" = "View Score Details";
+"dashboard.sleep" = "Sleep";
+"dashboard.activity" = "Activity";
+"dashboard.heart" = "Heart";
+"dashboard.recovery" = "Recovery";
+"dashboard.mindfulness" = "Mindfulness";
+"dashboard.viewDetails" = "View Details";
+"dashboard.noData" = "No data available";
+"dashboard.recentData" = "Showing most recent data";
+
+// MARK: - Sleep
+"sleep.title" = "Sleep";
+"sleep.timeAsleep" = "Time Asleep";
+"sleep.quality" = "Sleep Quality";
+"sleep.variability" = "Variability";
+"sleep.regularity" = "Regularity";
+"sleep.viewDetails" = "View Sleep Details";
+"sleep.hoursUnit" = "hrs";
+"sleep.minutesUnit" = "min";
+"sleep.learnMore" = "Learn about sleep metrics";
+"sleep.timeAsleep.desc" = "Total time you spent asleep last night. Adults need 7-9 hours for optimal health.";
+"sleep.quality.desc" = "How well you slept based on duration. 100% means you hit the recommended 8 hours.";
+"sleep.variability.desc" = "How much your sleep time differs from night to night. Lower is better for your body's rhythm.";
+"sleep.regularity.desc" = "How consistent your sleep schedule is. A regular pattern helps you feel more rested.";
+
+// Sleep Stages
+"sleep.stages" = "Sleep Stages";
+"sleep.awake" = "Awake";
+"sleep.rem" = "REM";
+"sleep.core" = "Core";
+"sleep.deep" = "Deep";
+"sleep.noData" = "No Sleep Data";
+"sleep.noDataDesc" = "Sleep data will appear here once synced from your device";
+"sleep.ofSession" = "of sleep session";
+"sleep.total" = "Total";
+"sleep.totalSleep" = "Total Sleep";
+"sleep.weeklyOverview" = "Weekly Overview";
+"sleep.awake.desc" = "Time spent awake during your sleep session. Some awake time is normal, but too much may indicate restless sleep.";
+"sleep.rem.desc" = "REM (Rapid Eye Movement) sleep is when you dream. It's important for memory, learning, and emotional processing. Aim for 20-25% of total sleep.";
+"sleep.core.desc" = "Core (Light) sleep makes up the majority of your sleep. It helps with physical recovery and memory consolidation.";
+"sleep.deep.desc" = "Deep sleep is the most restorative stage. It's when your body repairs tissues and strengthens immunity. Aim for 15-20% of total sleep.";
+
+// MARK: - Activity
+"activity.title" = "Activity";
+"activity.steps" = "Steps";
+"activity.calories" = "Calories";
+"activity.exercise" = "Exercise";
+"activity.viewDetails" = "View Activity Details";
+"activity.stepsThisWeek" = "Steps This Week";
+"activity.caloriesBurned" = "Calories Burned";
+
+// MARK: - Heart
+"heart.title" = "Heart";
+"heart.restingHR" = "Resting HR";
+"heart.hrv" = "HRV";
+"heart.bloodOxygen" = "Blood Oxygen";
+"heart.viewDetails" = "View Heart Details";
+
+// MARK: - Food
+"food.title" = "Calories";
+"food.diary" = "Diary";
+"food.logFood" = "Log Food";
+"food.caloriesEaten" = "Calories eaten";
+"food.dailyGoal" = "Daily Goal";
+"food.remaining" = "Remaining";
+"food.noMealsLogged" = "No meals logged";
+"food.whatDidYouEat" = "What did you eat?";
+"food.estimateCalories" = "Estimate Calories";
+"food.estimating" = "Estimating...";
+"food.addPhoto" = "Add a photo";
+"food.choosePhoto" = "Choose Photo";
+"food.removePhoto" = "Remove";
+"food.calories" = "Calories";
+"food.protein" = "Protein";
+"food.carbs" = "Carbs";
+"food.fat" = "Fat";
+"food.macrosOptional" = "Macros (optional)";
+"food.todayEntries" = "Today's Entries";
+"food.useRecommended" = "Use Recommended";
+"food.kcal" = "kcal";
+"food.grams" = "g";
+"food.proteinEaten" = "Protein eaten";
+"food.carbsEaten" = "Carbs eaten";
+"food.fatEaten" = "Fat eaten";
+"food.adjustIfNeeded" = "Adjust if needed";
+"food.enterMacros" = "Enter grams for detailed macro tracking";
+"food.placeholder" = "e.g. Chicken salad";
+
+// MARK: - Fitness
+"fitness.title" = "Fitness";
+"fitness.recentWorkouts" = "Recent Workouts";
+"fitness.noWorkouts" = "No Workouts";
+"fitness.noWorkoutsDesc" = "Your workouts will appear here";
+"fitness.recovery" = "Recovery";
+"fitness.viewRecoveryDetails" = "View Recovery Details";
+"fitness.considerRest" = "Consider a rest day";
+
+// Energy & Calorie Balance
+"fitness.energyBurned" = "Energy Burned";
+"fitness.burnedToday" = "burned today";
+"fitness.todaysBalance" = "Today's Balance";
+"fitness.insight.deficit" = "%d kcal deficit";
+"fitness.insight.surplus" = "%d kcal surplus";
+"fitness.insight.balanced" = "Perfectly balanced";
+"fitness.eaten" = "Eaten";
+"fitness.burned" = "Burned";
+"fitness.remaining" = "Remaining";
+"fitness.over" = "Over";
+"fitness.deficitGoal" = "You have a weight loss goal (-500 kcal/day)";
+"fitness.surplusGoal" = "You have a weight gain goal (+300 kcal/day)";
+
+// Weekly Workout Summary
+"fitness.weeklyWorkouts" = "This Week's Workouts";
+"fitness.days" = "days";
+"fitness.thisWeek" = "this week";
+
+// Workout Calendar
+"fitness.workoutCalendar" = "Workout Calendar";
+"fitness.workouts" = "Workouts";
+"fitness.totalTime" = "Total Time";
+"fitness.caloriesBurned" = "Burned";
+"fitness.workoutDay" = "Workout Day";
+"fitness.restDay" = "Rest Day";
+"fitness.viewAllWorkouts" = "View All Workouts";
+
+// Calorie Status
+"fitness.calorieStatus.underGoal" = "Under Goal";
+"fitness.calorieStatus.onTrack" = "On Track";
+"fitness.calorieStatus.overGoal" = "Over Goal";
+"fitness.calorieBalance" = "Calorie Balance";
+
+// MARK: - Mood (formerly Wellness)
+"wellness.title" = "Mood";
+"wellness.mood" = "Mood";
+"wellness.howAreYouFeeling" = "How are you feeling today?";
+"wellness.mood.bad" = "Bad";
+"wellness.mood.low" = "Low";
+"wellness.mood.okay" = "Okay";
+"wellness.mood.good" = "Good";
+"wellness.mood.great" = "Great";
+"wellness.journalEntry" = "Journal Entry";
+"wellness.writeYourThoughts" = "Write your thoughts...";
+"wellness.mindfulness" = "Mindfulness";
+"wellness.saveMood" = "Save Mood";
+"wellness.moodSaved" = "Mood saved!";
+"wellness.moodLog" = "Mood Log";
+"wellness.addNote" = "Add a note (optional)";
+"wellness.mindfulMinutes" = "Mindful Minutes";
+"wellness.todaysMindfulness" = "Today's mindfulness sessions";
+"wellness.stressLevel" = "Stress Level";
+"wellness.lowStress" = "Low Stress";
+"wellness.moderateStress" = "Moderate";
+"wellness.elevatedStress" = "Elevated";
+"wellness.highStress" = "High Stress";
+"wellness.basedOnHRV" = "Based on HRV: %@ ms";
+
+// MARK: - Settings
+"settings.title" = "Settings";
+"settings.profile" = "Profile";
+"settings.appearance" = "Appearance";
+"settings.language" = "Language";
+"settings.colorScheme" = "Color Scheme";
+"settings.systemDefault" = "System";
+"settings.light" = "Light";
+"settings.dark" = "Dark";
+"settings.age" = "Age";
+"settings.weight" = "Weight";
+"settings.height" = "Height";
+"settings.gender" = "Gender";
+"settings.male" = "Male";
+"settings.female" = "Female";
+"settings.activityLevel" = "Activity Level";
+"settings.goal" = "Goal";
+"settings.about" = "About";
+"settings.version" = "Version";
+"settings.privacyPolicy" = "Privacy Policy";
+"settings.termsOfService" = "Terms of Service";
+"settings.sedentary" = "Sedentary";
+"settings.lightActivity" = "Lightly Active";
+"settings.moderateActivity" = "Moderately Active";
+"settings.activeActivity" = "Very Active";
+"settings.veryActive" = "Extremely Active";
+"settings.loseWeight" = "Lose Weight";
+"settings.maintainWeight" = "Maintain Weight";
+"settings.gainWeight" = "Gain Weight";
+"settings.healthData" = "Health Data";
+"settings.notifications" = "Notifications";
+"settings.units" = "Units";
+"settings.dataConnections" = "Data Connections";
+"settings.appleHealth" = "Apple Health";
+"settings.garminConnect" = "Garmin Connect";
+"settings.connected" = "Connected";
+"settings.notConnected" = "Not Connected";
+"settings.connect" = "Connect";
+"settings.disconnect" = "Disconnect";
+
+// MARK: - Onboarding
+"onboarding.welcome" = "Welcome to LifeIndex";
+"onboarding.welcomeSubtitle" = "Your personal health companion";
+"onboarding.selectLanguage" = "Select your language";
+"onboarding.continue" = "Continue";
+"onboarding.getStarted" = "Get Started";
+"onboarding.healthPermission" = "Health Data Access";
+"onboarding.healthPermissionDesc" = "LifeIndex needs access to your health data to provide personalized insights and track your progress.";
+"onboarding.allowAccess" = "Allow Access";
+"onboarding.skip" = "Skip for now";
+"onboarding.features.sleep" = "Track your sleep quality";
+"onboarding.features.activity" = "Monitor daily activity";
+"onboarding.features.nutrition" = "Log food & nutrition";
+"onboarding.features.insights" = "Get AI-powered insights";
+
+// MARK: - Streak
+"streak.title" = "Streaks & Missions";
+"streak.dayStreak" = "Day Streak";
+"streak.calendar" = "Calendar";
+"streak.missions" = "Missions";
+"streak.proTips" = "Pro Tips";
+"streak.keepItUp" = "Keep it up!";
+"streak.logFoodDaily" = "Log food daily to build your streak";
+"streak.currentStreak" = "Current Streak";
+"streak.longestStreak" = "Longest Streak";
+"streak.totalDaysLogged" = "Total Days Logged";
+"streak.bestStreak" = "Best Streak";
+"streak.totalDays" = "Total Days";
+
+// MARK: - Streak Motivational Messages
+"streak.motivation.0" = "Start your streak today! Log your first meal.";
+"streak.motivation.1" = "Great start! Keep it going tomorrow!";
+"streak.motivation.week" = "You're building momentum! Keep it up!";
+"streak.motivation.fullWeek" = "A full week! You're on fire!";
+"streak.motivation.twoWeeks" = "Two weeks strong! You're unstoppable!";
+"streak.motivation.month" = "A whole month! Incredible dedication!";
+"streak.motivation.twoMonths" = "Two months! You're a nutrition champion!";
+"streak.motivation.threeMonths" = "Three months! This is now a lifestyle!";
+"streak.motivation.halfYear" = "Half a year! Absolutely legendary!";
+"streak.motivation.year" = "Over a year! You're a true master!";
+
+// MARK: - Mission Titles & Descriptions
+"mission.firstStep.title" = "First Step";
+"mission.firstStep.desc" = "Log your first meal";
+"mission.firstStep.reward" = "Welcome Badge";
+"mission.gettingStarted.title" = "Getting Started";
+"mission.gettingStarted.desc" = "Maintain a 3-day streak";
+"mission.gettingStarted.reward" = "Spark Badge";
+"mission.weekWarrior.title" = "Week Warrior";
+"mission.weekWarrior.desc" = "Maintain a 7-day streak";
+"mission.weekWarrior.reward" = "Fire Badge";
+"mission.monthlyMaster.title" = "Monthly Master";
+"mission.monthlyMaster.desc" = "Maintain a 30-day streak";
+"mission.monthlyMaster.reward" = "Inferno Badge";
+"mission.dedicatedLogger.title" = "Dedicated Logger";
+"mission.dedicatedLogger.desc" = "Log meals on 10 different days";
+"mission.dedicatedLogger.reward" = "Consistency Badge";
+"mission.habitBuilder.title" = "Habit Builder";
+"mission.habitBuilder.desc" = "Log meals on 50 different days";
+"mission.habitBuilder.reward" = "Dedication Badge";
+"mission.centuryClub.title" = "Century Club";
+"mission.centuryClub.desc" = "Maintain a 100-day streak";
+"mission.centuryClub.reward" = "Legend Badge";
+
+// MARK: - Streak Tips
+"streak.tip.sameTime" = "Log meals at the same time each day to build a habit";
+"streak.tip.reminders" = "Set reminders to never miss a day";
+"streak.tip.photos" = "Take photos of your meals for easier logging";
+"streak.tip.aiEstimate" = "Use AI estimation for quick calorie tracking";
+
+// MARK: - Units
+"units.kcal" = "kcal";
+"units.steps" = "steps";
+"units.minutes" = "min";
+"units.hours" = "hrs";
+"units.bpm" = "BPM";
+"units.ms" = "ms";
+"units.percent" = "%";
+"units.kg" = "kg";
+"units.cm" = "cm";
+"units.grams" = "g";
+
+// MARK: - Days of Week
+"day.sunday" = "Sun";
+"day.monday" = "Mon";
+"day.tuesday" = "Tue";
+"day.wednesday" = "Wed";
+"day.thursday" = "Thu";
+"day.friday" = "Fri";
+"day.saturday" = "Sat";
+
+// MARK: - Meal Types
+"meal.breakfast" = "Breakfast";
+"meal.lunch" = "Lunch";
+"meal.dinner" = "Dinner";
+"meal.snack" = "Snack";
+
+// MARK: - Score Levels
+"score.poor" = "Poor";
+"score.fair" = "Fair";
+"score.good" = "Good";
+"score.excellent" = "Excellent";
+"score.outstanding" = "Outstanding";
+"score.needsWork" = "Needs Work";
+"score.excellentDesc" = "Optimal health";
+"score.goodDesc" = "Healthy range";
+"score.fairDesc" = "Room to improve";
+"score.needsWorkDesc" = "Focus area";
+
+// MARK: - Recovery
+"recovery.poor" = "Poor Recovery";
+"recovery.fair" = "Fair Recovery";
+"recovery.good" = "Good Recovery";
+"recovery.excellent" = "Excellent Recovery";
+
+// MARK: - Errors
+"error.generic" = "Something went wrong";
+"error.noInternet" = "No internet connection";
+"error.healthKitUnavailable" = "HealthKit is not available on this device";
+"error.permissionDenied" = "Permission denied";
+
+// MARK: - Insights
+"insights.title" = "Insights";
+"insights.aiPowered" = "AI Insights";
+"insights.aiInsights" = "AI Insights";
+"insights.viewMore" = "View More";
+"insights.viewDetails" = "View Details";
+"insights.viewHistory" = "View Insight History";
+"insights.history" = "History";
+"insights.history.title" = "Insight History";
+"insights.showLess" = "Show Less";
+"insights.showMore" = "Show More";
+"insights.generating" = "Generating analysis...";
+"insights.weeklySummary" = "Weekly Summary";
+"insights.noWeeklySummary" = "Generate your weekly health summary";
+"insights.generateSummary" = "Generate Summary";
+"insights.generatingSummary" = "Generating summary...";
+
+// MARK: - Additional UI Strings
+"ui.avg" = "Avg";
+"ui.average" = "Average";
+"ui.today" = "Today";
+"ui.thisWeek" = "This Week";
+"ui.noData" = "No data";
+"ui.noHealthData" = "No health data available";
+"ui.low" = "Low";
+"ui.high" = "High";
+"ui.details" = "Details";
+"ui.metrics" = "Metrics";
+"ui.summary" = "Summary";
+"ui.export" = "Export";
+"ui.takePhoto" = "Take Photo";
+"ui.intensity" = "Intensity";
+"ui.recommendation" = "Recommendation";
+
+// Sleep
+"sleep.dailyScores" = "Daily Sleep Scores";
+"sleep.sleepScore" = "Sleep Score";
+"sleep.target" = "Target: 7-8 hours";
+"sleep.noSleepData" = "No sleep data";
+"sleep.stagesDetail" = "Sleep Stages Detail";
+"sleep.totalAsleep" = "Total Asleep";
+"sleep.totalTimeInBed" = "Total Time in Bed";
+"sleep.excellent" = "Excellent";
+"sleep.great" = "Great";
+"sleep.good" = "Good";
+"sleep.fair" = "Fair";
+"sleep.poor" = "Poor";
+
+// Recovery
+"recovery.dailyScores" = "Daily Recovery Scores";
+"recovery.metrics" = "Recovery Metrics";
+"recovery.details" = "Recovery Detail";
+"recovery.viewDetails" = "View Recovery Details";
+"recovery.explanation" = "Recovery score combines HRV (40%), resting heart rate (30%), and sleep duration (30%). Higher HRV and lower resting HR indicate better recovery.";
+"recovery.restRecommended" = "Rest day recommended";
+
+// LifeIndex Score
+"lifeindex.dailyScores" = "Daily Scores";
+"lifeindex.today" = "Today's LifeIndex";
+"lifeindex.viewDetail" = "View Today's Detail";
+"lifeindex.viewScoreDetails" = "View Score Details";
+"lifeindex.viewYesterday" = "View Yesterday's Report";
+"lifeindex.yourMetrics" = "Your Metrics";
+"lifeindex.howItWorks" = "How It Works";
+"lifeindex.noDataYet" = "No health data available yet.";
+"lifeindex.explanation" = "Your LifeIndex compares each health metric against an ideal range, then combines them based on importance to your overall wellness.";
+"lifeindex.weightsExplanation" = "Some metrics matter more for overall health:";
+"lifeindex.timeAware" = "Activity metrics (steps, calories, exercise) scale throughout the day. Your morning score won't suffer because you haven't hit your daily step goal yet.";
+"lifeindex.target" = "Target:";
+"lifeindex.idealRange" = "Ideal range:";
+"lifeindex.scoreBreakdown" = "Score Breakdown";
+"lifeindex.howScoringWorks" = "How Scoring Works";
+"lifeindex.scoringExplanation" = "Your LifeIndex score combines all your health metrics into one easy-to-understand number. Each metric is compared against an optimal range, then weighted by importance.";
+"lifeindex.metricImportance" = "Metric Importance";
+"lifeindex.metricImportanceHint" = "Some metrics contribute more to your overall score:";
+"lifeindex.smartTimeAdjustment" = "Smart Time Adjustment";
+"lifeindex.timeAdjustmentExplanation" = "Activity metrics like steps and calories adjust throughout the day. Your morning score won't be penalized because you haven't hit your daily goals yet.";
+"lifeindex.scoreLevels" = "Score Levels";
+
+// Activity
+"activity.viewDetails" = "View Activity Details";
+"activity.caloriesBurned" = "Calories Burned";
+
+// Mindfulness
+"mindfulness.viewDetails" = "View Mindfulness Details";
+
+// Dashboard
+"dashboard.showingRecent" = "Showing most recent data — today hasn't synced yet";
+"dashboard.noDataAvailable" = "No data available";
+"dashboard.itsLate" = "It's Late!";
+"dashboard.lateExplanation" = "Your daily metrics are still building up. Check back tomorrow morning for a complete picture.";
+"dashboard.todaysScore" = "Today's Score";
+"dashboard.noHealthData" = "No Health Data Yet";
+"dashboard.healthDataExplanation" = "LifeIndex needs access to your health data. Make sure all categories are enabled in Health app settings.";
+
+// Workout
+"workout.details" = "Details";
+"workout.duration" = "Duration";
+"workout.activeCalories" = "Active Calories";
+"workout.distance" = "Distance";
+"workout.avgPace" = "Avg Pace";
+"workout.avgHeartRate" = "Avg Heart Rate";
+"workout.intensity" = "Intensity";
+"workout.intensity.high" = "High Intensity";
+"workout.intensity.high.desc" = "Great cardio workout! You pushed hard.";
+"workout.intensity.moderate" = "Moderate Intensity";
+"workout.intensity.moderate.desc" = "Solid workout with good effort.";
+"workout.intensity.light" = "Light Intensity";
+"workout.intensity.light.desc" = "Active movement, easy on the body.";
+"workout.intensity.low" = "Low Intensity";
+"workout.intensity.low.desc" = "Gentle activity, good for recovery.";
+"workout.allWorkouts" = "All Workouts";
+"workout.totalCalories" = "Total Calories";
+"workout.totalTime" = "Total Time";
+
+// Food
+"food.editFood" = "Edit Food";
+"food.deleteConfirm" = "This will permanently delete this food entry.";
+"food.deleteEntry" = "Delete Entry?";
+"food.goalChangeConfirm" = "This will change your daily calorie goal from %d to %d kcal. Your tracking data will remain, but progress will be calculated against the new goal.";
+"food.goal" = "Goal:";
+"food.logFoodButton" = "Log Food";
+
+// Settings
+"settings.appleHealthDesc" = "Apple Health is the primary data source for LifeIndex";
+"settings.garminDesc" = "Connect your Garmin account to sync workout and health data";
+
+// Onboarding
+"onboarding.trackEverything" = "Track Everything";
+
+// Reports
+"reports.weekly" = "Weekly";
+"reports.avgSleep" = "Avg Sleep";
+"reports.avgCalories" = "Avg Calories";
+"reports.title" = "Reports";
+"reports.healthReports" = "Health Reports";
+
+// MARK: - Greetings
+"greeting.morning" = "Good Morning";
+"greeting.afternoon" = "Good Afternoon";
+"greeting.evening" = "Good Evening";
+"greeting.night" = "Good Night";
+
+// MARK: - Settings Additional
+"settings.openAppleHealth" = "Open Apple Health";
+"settings.dailyReminder" = "Daily Reminder";
+"settings.reminderTime" = "Reminder Time";
+
+// MARK: - Score Explanations
+"score.explanation.outstanding" = "Outstanding day. All your metrics are in excellent shape.";
+"score.explanation.excellent" = "Most metrics are on track. A small push could get you to Excellent.";
+"score.explanation.good" = "Solid effort today. Focus on your weaker areas to level up.";
+"score.explanation.fair.morning" = "Your day is shaping up. Sleep and vitals look decent — keep building.";
+"score.explanation.fair.evening" = "A decent day, but a couple areas could use a boost.";
+"score.explanation.low.morning" = "Still early — your sleep and vitals set the foundation. Activity will build through the day.";
+"score.explanation.low.evening" = "Some metrics are off today. Prioritize what you can still control.";
+"score.explanation.veryLow.morning" = "Your day is just getting started. Focus on what's ahead, not what's missing yet.";
+"score.explanation.veryLow.evening" = "Your body may need extra care today. Rest and recover.";
+"score.explanation.default.morning" = "Good morning — your score will build as the day progresses.";
+"score.explanation.default.evening" = "Take it easy. Focus on the basics: sleep, hydration, movement.";
+
+// MARK: - Health Metrics Display Names
+"metric.steps" = "Steps";
+"metric.heartRate" = "Heart Rate";
+"metric.hrv" = "HRV";
+"metric.restingHR" = "Resting HR";
+"metric.bloodOxygen" = "Blood Oxygen";
+"metric.activeCalories" = "Active Calories";
+"metric.sleep" = "Sleep";
+"metric.mindfulness" = "Mindfulness";
+"metric.workouts" = "Workouts";
+
+// MARK: - Workout Types
+"workout.type.running" = "Running";
+"workout.type.cycling" = "Cycling";
+"workout.type.swimming" = "Swimming";
+"workout.type.walking" = "Walking";
+"workout.type.hiking" = "Hiking";
+"workout.type.yoga" = "Yoga";
+"workout.type.strength" = "Strength Training";
+"workout.type.hiit" = "HIIT";
+"workout.type.core" = "Core Training";
+"workout.type.flexibility" = "Flexibility";
+"workout.type.default" = "Workout";
+
+// MARK: - Sleep Insights
+"sleep.insight.healthy" = "You got a healthy amount of sleep";
+"sleep.insight.long" = "You slept longer than average";
+"sleep.insight.needMore" = "Consider getting a bit more sleep";
+"sleep.insight.aim" = "Try to aim for 7-9 hours of sleep";
+"sleep.insight.greatQuality" = "Great sleep quality with good deep sleep";
+"sleep.insight.improveDeep" = "Try to improve deep sleep through regular exercise";
+"sleep.insight.awakenings" = "Frequent awakenings may affect recovery";
+"sleep.insight.great" = "Great sleep — %dh %dm is in the ideal 7-9hr range.";
+
+// MARK: - Importance Labels
+"importance.high" = "High";
+"importance.medium" = "Medium";
+"importance.low" = "Low";
+
+// MARK: - Metric Status
+"metricStatus.excellent" = "Excellent";
+"metricStatus.good" = "Good";
+"metricStatus.fair" = "Fair";
+"metricStatus.needsWork" = "Needs work";
+
+// MARK: - Dashboard Suggestions
+"suggestion.enableSleep" = "Enable sleep tracking tonight";
+
+// MARK: - Sleep Page
+"sleep.7dayAvg" = "7-day avg";
+
+// MARK: - Score Labels (LifeIndex)
+"scoreLabel.excellent" = "Excellent";
+"scoreLabel.great" = "Great";
+"scoreLabel.good" = "Good";
+"scoreLabel.buildingUp" = "Building Up";
+"scoreLabel.roomToGrow" = "Room to Grow";
+"scoreLabel.justStarting" = "Just Starting";
+"scoreLabel.gettingStarted" = "Getting Started";
+
+// MARK: - Recovery Labels
+"recoveryLabel.fullyRecovered" = "Fully Recovered";
+"recoveryLabel.mostlyRecovered" = "Mostly Recovered";
+"recoveryLabel.partiallyRecovered" = "Partially Recovered";
+"recoveryLabel.restRecommended" = "Rest Recommended";

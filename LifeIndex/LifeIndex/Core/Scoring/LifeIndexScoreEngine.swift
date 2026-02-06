@@ -34,6 +34,12 @@ struct LifeIndexScoreEngine {
         .steps, .activeCalories, .workoutMinutes, .mindfulMinutes
     ]
 
+    // Metrics where exceeding the upper bound should NOT penalize the score
+    // (more steps, more calories burned, more workout = good, not bad)
+    static let moreIsBetterMetrics: Set<HealthMetricType> = [
+        .steps, .activeCalories, .workoutMinutes, .mindfulMinutes
+    ]
+
     // MARK: - Time-of-Day Scale Factor
 
     /// Returns a 0.0–1.0 factor representing how much of the waking day has passed.
@@ -99,17 +105,25 @@ struct LifeIndexScoreEngine {
     // MARK: - Score Individual Metric
 
     static func scoreMetric(value: Double, target: ClosedRange<Double>, type: HealthMetricType) -> Double {
+        // If within target range, perfect score
         if target.contains(value) {
+            return 1.0
+        }
+
+        // For "more is better" metrics, exceeding the upper bound = perfect score
+        if moreIsBetterMetrics.contains(type) && value > target.upperBound {
             return 1.0
         }
 
         let rangeSpan = target.upperBound - target.lowerBound
         guard rangeSpan > 0 else { return 1.0 }
 
+        // Calculate distance from target
         let distance: Double
         if value < target.lowerBound {
             distance = target.lowerBound - value
         } else {
+            // Only reach here for non-"more is better" metrics exceeding upper bound
             distance = value - target.upperBound
         }
 
@@ -123,12 +137,12 @@ struct LifeIndexScoreEngine {
 
     static func label(for score: Int) -> String {
         switch score {
-        case 90...100: return "Excellent"
-        case 75..<90: return "Great"
-        case 60..<75: return "Good"
-        case 40..<60: return "Building Up"
-        case 20..<40: return "Room to Grow"
-        default: return "Just Starting"
+        case 90...100: return "scoreLabel.excellent".localized
+        case 75..<90: return "scoreLabel.great".localized
+        case 60..<75: return "scoreLabel.good".localized
+        case 40..<60: return "scoreLabel.buildingUp".localized
+        case 20..<40: return "scoreLabel.roomToGrow".localized
+        default: return "scoreLabel.justStarting".localized
         }
     }
 
@@ -139,11 +153,11 @@ struct LifeIndexScoreEngine {
         // Before noon, use gentler labels for low scores
         if hour < 12 {
             switch score {
-            case 90...100: return "Excellent"
-            case 75..<90: return "Great"
-            case 60..<75: return "Good"
-            case 40..<60: return "Building Up"
-            default: return "Getting Started"
+            case 90...100: return "scoreLabel.excellent".localized
+            case 75..<90: return "scoreLabel.great".localized
+            case 60..<75: return "scoreLabel.good".localized
+            case 40..<60: return "scoreLabel.buildingUp".localized
+            default: return "scoreLabel.gettingStarted".localized
             }
         }
 

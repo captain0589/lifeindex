@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
+    @ObservedObject private var appearanceManager = AppearanceManager.shared
+    @ObservedObject private var languageManager = LanguageManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @AppStorage("dailyCalorieGoal") private var dailyCalorieGoal: Int = 2000
     @AppStorage("profileSyncedFromHealthKit") private var profileSyncedFromHealthKit = false
@@ -31,11 +33,42 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                // MARK: - Appearance Section
+                Section {
+                    // Language Picker
+                    Picker(selection: Binding(
+                        get: { languageManager.currentLanguage },
+                        set: { languageManager.setLanguage($0) }
+                    )) {
+                        ForEach(AppLanguage.allCases) { language in
+                            HStack {
+                                Text(language.flag)
+                                Text(language.displayName)
+                            }
+                            .tag(language)
+                        }
+                    } label: {
+                        Label("settings.language".localized, systemImage: "globe")
+                    }
+
+                    // Color Scheme Picker
+                    Picker(selection: $appearanceManager.colorSchemePreference) {
+                        Text("settings.systemDefault".localized).tag(0)
+                        Text("settings.light".localized).tag(1)
+                        Text("settings.dark".localized).tag(2)
+                    } label: {
+                        Label("settings.colorScheme".localized, systemImage: "circle.lefthalf.filled")
+                    }
+                } header: {
+                    Text("settings.appearance".localized)
+                }
+
+                // MARK: - Profile Section
                 Section {
                     HStack {
-                        Label("Age", systemImage: "calendar")
+                        Label("settings.age".localized, systemImage: "calendar")
                         Spacer()
-                        TextField("Age", value: $userAge, format: .number)
+                        TextField("settings.age".localized, value: $userAge, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 60)
@@ -44,54 +77,56 @@ struct SettingsView: View {
                     }
 
                     HStack {
-                        Label("Weight", systemImage: "scalemass")
+                        Label("settings.weight".localized, systemImage: "scalemass")
                         Spacer()
-                        TextField("kg", value: $userWeightKg, format: .number)
+                        TextField("units.kg".localized, value: $userWeightKg, format: .number)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 60)
-                        Text("kg")
+                        Text("units.kg".localized)
                             .foregroundStyle(Theme.secondaryText)
                     }
 
                     HStack {
-                        Label("Height", systemImage: "ruler")
+                        Label("settings.height".localized, systemImage: "ruler")
                         Spacer()
-                        TextField("cm", value: $userHeightCm, format: .number)
+                        TextField("units.cm".localized, value: $userHeightCm, format: .number)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 60)
-                        Text("cm")
+                        Text("units.cm".localized)
                             .foregroundStyle(Theme.secondaryText)
                     }
 
                     Picker(selection: $userGender) {
-                        Text("Male").tag(0)
-                        Text("Female").tag(1)
+                        Text("settings.male".localized).tag(0)
+                        Text("settings.female".localized).tag(1)
                     } label: {
-                        Label("Gender", systemImage: "person")
+                        Label("settings.gender".localized, systemImage: "person")
                     }
 
                     Picker(selection: $userActivityLevel) {
                         ForEach(NutritionEngine.ActivityLevel.allCases) { level in
-                            Text(level.displayName).tag(level.rawValue)
+                            Text(level.localizedName).tag(level.rawValue)
                         }
                     } label: {
-                        Label("Activity", systemImage: "figure.walk")
+                        Label("settings.activityLevel".localized, systemImage: "figure.walk")
                     }
 
                     Picker(selection: $userGoalType) {
                         ForEach(NutritionEngine.GoalType.allCases) { goal in
-                            Text(goal.displayName).tag(goal.rawValue)
+                            Text(goal.localizedName).tag(goal.rawValue)
                         }
                     } label: {
-                        Label("Goal", systemImage: "target")
+                        Label("settings.goal".localized, systemImage: "target")
                     }
+
                     Button {
                         Task { await syncFromHealthKit() }
                     } label: {
                         HStack {
                             Label("Sync from Apple Health", systemImage: "heart.fill")
+                                .foregroundStyle(Theme.heartRate)
                             Spacer()
                             if isSyncing {
                                 ProgressView()
@@ -100,16 +135,15 @@ struct SettingsView: View {
                     }
                     .disabled(isSyncing)
                 } header: {
-                    Text("Profile")
-                } footer: {
-                    Text("Recommended daily intake: \(calculatedGoal) kcal based on your profile")
+                    Text("settings.profile".localized)
                 }
 
-                Section("Health Data") {
+                // MARK: - Health Data Section
+                Section("settings.healthData".localized) {
                     NavigationLink {
-                        Text("Health data sources")
+                        DataConnectionsView()
                     } label: {
-                        Label("Connected Sources", systemImage: "heart.circle")
+                        Label("settings.dataConnections".localized, systemImage: "link.circle")
                     }
 
                     Button {
@@ -117,47 +151,52 @@ struct SettingsView: View {
                             UIApplication.shared.open(url)
                         }
                     } label: {
-                        Label("Open Apple Health", systemImage: "heart.text.clipboard")
+                        Label("settings.openAppleHealth".localized, systemImage: "heart.text.clipboard")
                     }
                 }
 
-                Section("Notifications") {
+                // MARK: - Notifications Section
+                Section("settings.notifications".localized) {
                     Toggle(isOn: $notificationsEnabled) {
-                        Label("Daily Reminder", systemImage: "bell")
+                        Label("settings.dailyReminder".localized, systemImage: "bell")
                     }
 
                     if notificationsEnabled {
                         DatePicker(
-                            "Reminder Time",
+                            "settings.reminderTime".localized,
                             selection: $dailyReminderTime,
                             displayedComponents: .hourAndMinute
                         )
                     }
                 }
 
-                Section("Reports") {
+                // MARK: - Reports Section
+                Section("reports.title".localized) {
                     NavigationLink {
                         ReportsView()
                     } label: {
-                        Label("Health Reports", systemImage: "chart.bar.fill")
+                        Label("reports.healthReports".localized, systemImage: "chart.bar.fill")
                     }
                 }
 
-                Section("About") {
+                // MARK: - About Section
+                Section("settings.about".localized) {
                     HStack {
-                        Text("Version")
+                        Text("settings.version".localized)
                         Spacer()
                         Text("1.0.0")
                             .foregroundStyle(Theme.secondaryText)
                     }
 
                     NavigationLink {
-                        Text("Privacy Policy")
+                        Text("settings.privacyPolicy".localized)
                     } label: {
-                        Label("Privacy Policy", systemImage: "lock.shield")
+                        Label("settings.privacyPolicy".localized, systemImage: "lock.shield")
                     }
                 }
 
+                // MARK: - Debug Section
+                #if DEBUG
                 Section("Debug") {
                     Button("Reset Onboarding") {
                         hasCompletedOnboarding = false
@@ -175,8 +214,9 @@ struct SettingsView: View {
                     }
                     .foregroundStyle(.blue)
                 }
+                #endif
             }
-            .navigationTitle("Settings")
+            .navigationTitle("settings.title".localized)
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 debugLog("[LifeIndex] Settings .task: profileSyncedFromHealthKit = \(profileSyncedFromHealthKit)")
@@ -187,13 +227,13 @@ struct SettingsView: View {
                 }
             }
         }
+        .preferredColorScheme(appearanceManager.preferredColorScheme)
     }
 
     private func syncFromHealthKit() async {
         debugLog("[LifeIndex] ═══ SETTINGS: Starting HealthKit profile sync ═══")
         isSyncing = true
 
-        // Ensure HealthKit is authorized before reading characteristics
         do {
             try await healthKitManager.requestAuthorization()
         } catch {
@@ -239,5 +279,96 @@ struct SettingsView: View {
             debugLog("[LifeIndex] ═══ SETTINGS: No data synced ═══")
         }
         isSyncing = false
+    }
+}
+
+// MARK: - Data Connections View
+
+struct DataConnectionsView: View {
+    @State private var isAppleHealthConnected = true
+    @State private var isGarminConnected = false
+
+    var body: some View {
+        List {
+            Section {
+                HStack {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: Theme.IconSize.lg))
+                        .foregroundStyle(.red)
+                        .frame(width: Theme.IconFrame.lg)
+
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                        Text("settings.appleHealth".localized)
+                            .font(Theme.headline)
+                        Text(isAppleHealthConnected ? "settings.connected".localized : "settings.notConnected".localized)
+                            .font(Theme.caption)
+                            .foregroundStyle(isAppleHealthConnected ? Theme.success : Theme.secondaryText)
+                    }
+
+                    Spacer()
+
+                    if isAppleHealthConnected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Theme.success)
+                    }
+                }
+            } footer: {
+                Text("Apple Health is the primary data source for LifeIndex")
+            }
+
+            Section {
+                HStack {
+                    Image(systemName: "applewatch")
+                        .font(.system(size: Theme.IconSize.lg))
+                        .foregroundStyle(.blue)
+                        .frame(width: Theme.IconFrame.lg)
+
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                        Text("settings.garminConnect".localized)
+                            .font(Theme.headline)
+                        Text(isGarminConnected ? "settings.connected".localized : "settings.notConnected".localized)
+                            .font(Theme.caption)
+                            .foregroundStyle(isGarminConnected ? Theme.success : Theme.secondaryText)
+                    }
+
+                    Spacer()
+
+                    Button(isGarminConnected ? "settings.disconnect".localized : "settings.connect".localized) {
+                        // TODO: Implement Garmin OAuth flow
+                        isGarminConnected.toggle()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(isGarminConnected ? .red : .blue)
+                }
+            } footer: {
+                Text("Connect your Garmin account to sync workout and health data")
+            }
+        }
+        .navigationTitle("settings.dataConnections".localized)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - NutritionEngine Extensions for Localization
+
+extension NutritionEngine.ActivityLevel {
+    var localizedName: String {
+        switch self {
+        case .sedentary: return "settings.sedentary".localized
+        case .light: return "settings.lightActivity".localized
+        case .moderate: return "settings.moderateActivity".localized
+        case .active: return "settings.activeActivity".localized
+        case .veryActive: return "settings.veryActive".localized
+        }
+    }
+}
+
+extension NutritionEngine.GoalType {
+    var localizedName: String {
+        switch self {
+        case .lose: return "settings.loseWeight".localized
+        case .maintain: return "settings.maintainWeight".localized
+        case .gain: return "settings.gainWeight".localized
+        }
     }
 }

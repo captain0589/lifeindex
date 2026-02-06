@@ -9,7 +9,7 @@ struct WellnessView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: Theme.Spacing.xl) {
                     MoodCheckInCard(
                         todayMood: $todayMood,
                         showLogger: $showMoodLogger
@@ -24,9 +24,10 @@ struct WellnessView: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.bottom, 20)
+                .padding(.vertical, Theme.Spacing.lg)
             }
-            .navigationTitle("Wellness")
+            .pageBackground(showGradient: true, gradientHeight: 300)
+            .navigationTitle("wellness.title".localized)
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showMoodLogger) {
                 MoodLoggerSheet(
@@ -44,41 +45,49 @@ struct MoodCheckInCard: View {
     @Binding var showLogger: Bool
 
     private let moodEmojis = ["😞", "😕", "😐", "🙂", "😄"]
-    private let moodLabels = ["Bad", "Low", "Okay", "Good", "Great"]
+    private var moodLabels: [String] {
+        [
+            "wellness.mood.bad".localized,
+            "wellness.mood.low".localized,
+            "wellness.mood.okay".localized,
+            "wellness.mood.good".localized,
+            "wellness.mood.great".localized
+        ]
+    }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Theme.Spacing.lg) {
             HStack {
-                Text("How are you feeling?")
+                Text("wellness.howAreYouFeeling".localized)
                     .font(Theme.headline)
                 Spacer()
                 if todayMood != nil {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Theme.success)
                 }
             }
 
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 ForEach(0..<5, id: \.self) { index in
                     Button {
                         todayMood = index + 1
                         showLogger = true
                     } label: {
-                        VStack(spacing: 4) {
+                        VStack(spacing: Theme.Spacing.xs) {
                             Text(moodEmojis[index])
                                 .font(.system(size: 32))
                             Text(moodLabels[index])
-                                .font(.system(size: 10))
+                                .font(.system(size: Theme.FontSize.tiny))
                                 .foregroundStyle(Theme.secondaryText)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, Theme.Spacing.sm)
                         .background(
                             todayMood == index + 1
                                 ? Theme.mood.opacity(0.2)
                                 : Color.clear
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
                     }
                     .buttonStyle(.plain)
                 }
@@ -97,34 +106,34 @@ struct MoodLoggerSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: Theme.Spacing.xl) {
                 if let mood = selectedMood {
                     Text(moodEmojis[mood - 1])
-                        .font(.system(size: 64))
+                        .font(.system(size: Theme.FontSize.massive))
                 }
 
-                Text("Add a note (optional)")
+                Text("wellness.addNote".localized)
                     .font(Theme.headline)
 
                 TextEditor(text: $note)
                     .frame(height: 120)
-                    .padding(8)
+                    .padding(Theme.Spacing.sm)
                     .background(Theme.tertiaryBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md))
 
                 Spacer()
             }
             .padding()
-            .navigationTitle("Mood Log")
+            .navigationTitle("wellness.moodLog".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
+                    Button("common.cancel".localized) {
                         isPresented = false
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
+                    Button("common.save".localized) {
                         // TODO: Persist mood log to Core Data
                         isPresented = false
                     }
@@ -144,19 +153,19 @@ struct MindfulnessCard: View {
             Image(systemName: "brain.head.profile")
                 .font(.title2)
                 .foregroundStyle(Theme.mindfulness)
-                .frame(width: 40)
+                .frame(width: Theme.IconFrame.lg)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Mindful Minutes")
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("wellness.mindfulMinutes".localized)
                     .font(Theme.headline)
-                Text("Today's mindfulness sessions")
+                Text("wellness.todaysMindfulness".localized)
                     .font(Theme.caption)
                     .foregroundStyle(Theme.secondaryText)
             }
 
             Spacer()
 
-            Text("\(Int(minutes)) min")
+            Text("\(Int(minutes)) " + "units.minutes".localized)
                 .font(.system(.title3, design: .rounded, weight: .bold))
                 .foregroundStyle(Theme.mindfulness)
         }
@@ -169,33 +178,33 @@ struct StressIndicatorCard: View {
 
     private var stressLevel: String {
         switch hrv {
-        case 60...: return "Low Stress"
-        case 40..<60: return "Moderate"
-        case 20..<40: return "Elevated"
-        default: return "High Stress"
+        case 60...: return "wellness.lowStress".localized
+        case 40..<60: return "wellness.moderateStress".localized
+        case 20..<40: return "wellness.elevatedStress".localized
+        default: return "wellness.highStress".localized
         }
     }
 
     private var stressColor: Color {
         switch hrv {
-        case 60...: return .green
-        case 40..<60: return .yellow
+        case 60...: return Theme.success
+        case 40..<60: return Theme.warning
         case 20..<40: return .orange
-        default: return .red
+        default: return Theme.error
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Stress Level")
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("wellness.stressLevel".localized)
                 .font(Theme.headline)
 
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text(stressLevel)
                         .font(.system(.title3, design: .rounded, weight: .bold))
                         .foregroundStyle(stressColor)
-                    Text("Based on HRV: \(Int(hrv)) ms")
+                    Text(String(format: "wellness.basedOnHRV".localized, "\(Int(hrv))"))
                         .font(Theme.caption)
                         .foregroundStyle(Theme.secondaryText)
                 }
@@ -205,12 +214,12 @@ struct StressIndicatorCard: View {
                 ZStack {
                     Circle()
                         .stroke(stressColor.opacity(0.2), lineWidth: 8)
-                        .frame(width: 60, height: 60)
+                        .frame(width: Theme.ComponentSize.ringMedium, height: Theme.ComponentSize.ringMedium)
 
                     Circle()
                         .trim(from: 0, to: min(1.0, hrv / 100.0))
                         .stroke(stressColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                        .frame(width: 60, height: 60)
+                        .frame(width: Theme.ComponentSize.ringMedium, height: Theme.ComponentSize.ringMedium)
                         .rotationEffect(.degrees(-90))
 
                     Image(systemName: "brain")
