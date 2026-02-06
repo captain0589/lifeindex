@@ -304,6 +304,19 @@ class ChatViewModel: ObservableObject {
             lines.append("Workout time today: \(Int(workout)) minutes")
         }
 
+        // Mood data
+        if let mood = context.todayMood {
+            let moodLabels = ["Bad", "Low", "Okay", "Good", "Great"]
+            let moodLabel = moodLabels[mood - 1]
+            lines.append("Today's mood: \(mood)/5 (\(moodLabel))")
+            if let note = context.todayMoodNote, !note.isEmpty {
+                lines.append("Mood note: \"\(note)\"")
+            }
+        }
+        if let moodAvg = context.weeklyMoodAverage {
+            lines.append("7-day average mood: \(String(format: "%.1f", moodAvg))/5")
+        }
+
         // Weekly summary
         if let avg = context.weeklyAverageScore {
             lines.append("\n=== WEEKLY SUMMARY ===")
@@ -890,6 +903,11 @@ struct HealthContext {
     let recoveryScore: Int?
     let workoutMinutes: Double?
     let insights: [String]
+
+    // Mood data
+    let todayMood: Int?  // 1-5 scale
+    let todayMoodNote: String?
+    let weeklyMoodAverage: Double?
 
     // Historical data (for AI context)
     let weeklyScores: [(date: Date, score: Int)]

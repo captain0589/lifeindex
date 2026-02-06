@@ -25,11 +25,6 @@ struct SleepTabView: View {
         return SleepScoreEngine.calculateScore(sleepMinutes: stages.totalAsleepMinutes, stages: stages)
     }
 
-    private var sleepScoreLabel: String {
-        guard let score = todaySleepScore else { return "ui.noData".localized }
-        return SleepScoreEngine.label(for: score) + " " + "tab.sleep".localized
-    }
-
     private var sleepColor: Color {
         guard let score = todaySleepScore else { return Theme.secondaryText }
         switch score {
@@ -82,11 +77,10 @@ struct SleepTabView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Theme.Spacing.xl) {
-                    // MARK: - Today's Sleep Card
+                    // MARK: - Today's Sleep Section (Full Width - No Card)
                     if let stages = sleepStages, let score = todaySleepScore {
                         TodaySleepCard(
                             score: score,
-                            label: sleepScoreLabel,
                             color: sleepColor,
                             stages: stages
                         )
@@ -94,7 +88,6 @@ struct SleepTabView: View {
                         // Has sleep duration but no stages
                         TodaySleepCard(
                             score: score,
-                            label: sleepScoreLabel,
                             color: sleepColor,
                             stages: nil
                         )
@@ -107,16 +100,16 @@ struct SleepTabView: View {
 
                             Text("sleep.noData".localized)
                                 .font(.system(.title3, design: .rounded, weight: .semibold))
-                                .foregroundStyle(Theme.primaryText)
+                                .foregroundStyle(.white)
 
                             Text("sleep.noDataDesc".localized)
                                 .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(Theme.secondaryText)
+                                .foregroundStyle(.white.opacity(0.7))
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.vertical, Theme.Spacing.xxl)
                         .frame(maxWidth: .infinity)
-                        .cardStyle()
+                        .padding(.horizontal)
                     }
 
                     // MARK: - Weekly Sleep Chart
@@ -128,6 +121,7 @@ struct SleepTabView: View {
                             todayScore: todaySleepScore,
                             yesterdayScore: yesterdaySleep?.score
                         )
+                        .padding(.horizontal)
                     }
 
                     // MARK: - Daily Sleep Scores
@@ -140,20 +134,71 @@ struct SleepTabView: View {
                                 selectedDay = summary
                             }
                         )
+                        .padding(.horizontal)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, Theme.Spacing.lg)
+                .padding(.bottom, Theme.Spacing.lg)
             }
-            .pageBackground(showGradient: true, gradientHeight: 300)
+            .background {
+                // Full-screen night sky background
+                GeometryReader { geo in
+                    ZStack(alignment: .top) {
+                        // Base background color
+                        Theme.background
+                            .ignoresSafeArea()
+
+                        // Night sky image - full screen coverage with subtle bottom fade
+                        Image("night_sky")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                            .overlay {
+                                // Slight dark overlay for readability
+                                LinearGradient(
+                                    colors: [
+                                        Color.black.opacity(0.15),
+                                        Color.black.opacity(0.05),
+                                        Color.black.opacity(0.1)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            }
+                            .mask {
+                                // Subtle fade at bottom
+                                VStack(spacing: 0) {
+                                    Rectangle()
+                                        .fill(Color.white)
+                                    LinearGradient(
+                                        colors: [Color.white, Color.white.opacity(0)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                    .frame(height: 60)
+                                }
+                            }
+                            .ignoresSafeArea()
+                    }
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .navigationTitle("tab.sleep".localized)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("tab.sleep".localized)
+                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
             .refreshable {
                 await loadData()
             }
             .overlay {
                 if isLoading {
                     ProgressView()
+                        .tint(.white)
                 }
             }
             .sheet(item: $selectedDay) { summary in
@@ -173,46 +218,36 @@ struct SleepTabView: View {
     }
 }
 
-// MARK: - Today's Sleep Card
+// MARK: - Today's Sleep Card (Full Width - No Card Style)
 
 private struct TodaySleepCard: View {
     let score: Int
-    let label: String
     let color: Color
     let stages: SleepStages?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-            SectionHeader(title: "tab.sleep".localized, icon: "moon.zzz.fill", color: Theme.sleep)
+        VStack(spacing: Theme.Spacing.xl) {
+            // Centered score ring (smaller size)
+            ZStack {
+                Circle()
+                    .stroke(color.opacity(0.2), lineWidth: 14)
+                    .frame(width: 120, height: 120)
+                Circle()
+                    .trim(from: 0, to: Double(score) / 100.0)
+                    .stroke(color, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                    .frame(width: 120, height: 120)
+                    .rotationEffect(.degrees(-90))
+                Text("\(score)")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .padding(.top, Theme.Spacing.xl)
 
-            // Score ring + label
-            HStack(spacing: Theme.Spacing.lg) {
-                ZStack {
-                    Circle()
-                        .stroke(color.opacity(0.2), lineWidth: 10)
-                        .frame(width: 70, height: 70)
-                    Circle()
-                        .trim(from: 0, to: Double(score) / 100.0)
-                        .stroke(color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                        .frame(width: 70, height: 70)
-                        .rotationEffect(.degrees(-90))
-                    Text("\(score)")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
-                        .foregroundStyle(color)
-                }
-
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text(label)
-                        .font(Theme.body)
-                        .foregroundStyle(Theme.secondaryText)
-
-                    if let stages = stages {
-                        Text(formatDuration(stages.totalAsleepMinutes))
-                            .font(.system(.headline, design: .rounded, weight: .semibold))
-                            .foregroundStyle(Theme.primaryText)
-                    }
-                }
-                Spacer()
+            // Centered duration
+            if let stages = stages {
+                Text(formatDuration(stages.totalAsleepMinutes))
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white)
             }
 
             // Sleep stages breakdown
@@ -220,7 +255,8 @@ private struct TodaySleepCard: View {
                 SleepStagesBreakdown(stages: stages, color: color)
             }
         }
-        .cardStyle()
+        .padding(.horizontal, Theme.Spacing.lg)
+        .frame(maxWidth: .infinity)
     }
 
     private func formatDuration(_ minutes: Double) -> String {
@@ -252,11 +288,12 @@ private struct SleepStagesBreakdown: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack {
                 Text("sleep.stages".localized)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white)
                 Spacer()
-                Text("sleep.total".localized + ": " + formatDuration(stages.totalMinutes))
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(Theme.secondaryText)
+                Text("sleep.totalSleep".localized + ": " + formatDuration(stages.totalAsleepMinutes))
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.8))
             }
 
             // Stacked bar
@@ -273,27 +310,32 @@ private struct SleepStagesBreakdown: View {
             .frame(height: 12)
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            // Legend - evenly distributed
+            // Legend - evenly distributed with bolder text
             HStack(spacing: 0) {
                 ForEach(stageData, id: \.name) { stage in
-                    HStack(spacing: Theme.Spacing.xs) {
+                    HStack(alignment: .top, spacing: Theme.Spacing.xs) {
                         Circle()
                             .fill(stage.color)
-                            .frame(width: 8, height: 8)
-                        VStack(alignment: .leading, spacing: 0) {
+                            .frame(width: 10, height: 10)
+                            .padding(.top, 3)
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(stage.name)
-                                .font(.system(.caption2, design: .rounded, weight: .medium))
-                                .foregroundStyle(Theme.secondaryText)
+                                .font(.system(.caption, design: .rounded, weight: .bold))
+                                .foregroundStyle(.white)
                             Text("\(Int(stage.minutes))m")
                                 .font(.system(.caption, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                            Text("\(stage.percent)%")
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.7))
                         }
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.tertiaryBackground.opacity(0.5))
+        .background(.black.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md))
     }
 
@@ -443,7 +485,9 @@ private struct WeeklySleepChart: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
             }
         }
-        .cardStyle()
+        .padding(Theme.Spacing.md)
+        .background(.black.opacity(0.35))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md))
     }
 
     private func formatDuration(_ minutes: Double) -> String {
@@ -470,49 +514,43 @@ private struct DailySleepScoresSection: View {
                 .font(.system(.headline, design: .rounded, weight: .semibold))
                 .padding(.bottom, Theme.Spacing.sm)
 
-            ForEach(scores, id: \.date) { entry in
+            ForEach(scores.reversed(), id: \.date) { entry in
                 if let score = entry.score, let summary = weeklyData.first(where: { $0.date == entry.date }) {
                     Button {
                         onSelect(summary)
                     } label: {
                         HStack {
-                            Text(entry.day)
-                                .font(.system(.body, design: .rounded))
-                                .frame(width: 40, alignment: .leading)
-
-                            if let minutes = entry.minutes {
-                                Text(formatDuration(minutes))
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundStyle(Theme.secondaryText)
-                            }
+                            Text(entry.date.relativeDescription)
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundStyle(Theme.primaryText)
+                                .frame(width: 90, alignment: .leading)
 
                             Spacer()
 
-                            Text("\(score)")
-                                .font(.system(.body, design: .rounded, weight: .bold))
+                            Text("\(score)/100")
+                                .font(.system(.subheadline, design: .rounded, weight: .bold))
                                 .foregroundStyle(scoreColor(score))
 
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
+                            Text(SleepScoreEngine.label(for: score))
+                                .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(Theme.secondaryText)
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Theme.tertiaryText)
                         }
-                        .padding(.vertical, Theme.Spacing.xs)
-                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+
+                    if entry.date != scores.first?.date {
+                        Divider()
+                    }
                 }
             }
         }
-        .cardStyle()
-    }
-
-    private func formatDuration(_ minutes: Double) -> String {
-        let hours = Int(minutes) / 60
-        let mins = Int(minutes) % 60
-        if mins == 0 {
-            return "\(hours)h"
-        }
-        return "\(hours)h \(mins)m"
+        .padding(Theme.Spacing.md)
+        .background(.black.opacity(0.35))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md))
     }
 
     private func scoreColor(_ score: Int) -> Color {
@@ -525,6 +563,7 @@ private struct DailySleepScoresSection: View {
     }
 }
 
+
 // MARK: - Sleep Day Detail Sheet
 
 struct SleepDayDetailSheet: View, Identifiable {
@@ -534,12 +573,12 @@ struct SleepDayDetailSheet: View, Identifiable {
     @Environment(\.dismiss) private var dismiss
 
     private var sleepMinutes: Double? {
-        summary.metrics[.sleepDuration]
+        summary.sleepStages?.totalAsleepMinutes ?? summary.metrics[.sleepDuration]
     }
 
     private var sleepScore: Int? {
         let stages = summary.sleepStages
-        let minutes = stages?.totalAsleepMinutes ?? sleepMinutes
+        let minutes = stages?.totalAsleepMinutes ?? summary.metrics[.sleepDuration]
         guard let sleepMinutes = minutes else { return nil }
         return SleepScoreEngine.calculateScore(sleepMinutes: sleepMinutes, stages: stages)
     }
@@ -554,84 +593,116 @@ struct SleepDayDetailSheet: View, Identifiable {
         }
     }
 
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "EEEE, d MMMM yyyy"
+        return formatter.string(from: summary.date)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    // Date header
-                    Text(summary.date.formatted(date: .complete, time: .omitted))
-                        .font(.system(.title3, design: .rounded, weight: .bold))
-                        .foregroundStyle(Theme.primaryText)
-
-                    // Score card
+                VStack(spacing: 0) {
+                    // Sleep section - same design as main TodaySleepCard (full width)
                     if let score = sleepScore {
-                        HStack(spacing: Theme.Spacing.lg) {
+                        VStack(spacing: Theme.Spacing.xl) {
+                            // Date header inside the night sky
+                            Text(formattedDate)
+                                .font(.system(.headline, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .padding(.top, Theme.Spacing.xl)
+
+                            // Centered score ring (smaller size, matching main page)
                             ZStack {
                                 Circle()
-                                    .stroke(scoreColor.opacity(0.2), lineWidth: 8)
-                                    .frame(width: 60, height: 60)
+                                    .stroke(scoreColor.opacity(0.2), lineWidth: 14)
+                                    .frame(width: 120, height: 120)
                                 Circle()
                                     .trim(from: 0, to: Double(score) / 100.0)
-                                    .stroke(scoreColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                                    .frame(width: 60, height: 60)
+                                    .stroke(scoreColor, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                                    .frame(width: 120, height: 120)
                                     .rotationEffect(.degrees(-90))
                                 Text("\(score)")
-                                    .font(.system(.title3, design: .rounded, weight: .bold))
-                                    .foregroundStyle(scoreColor)
+                                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
                             }
 
-                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                                Text("sleep.sleepScore".localized)
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .foregroundStyle(Theme.secondaryText)
-                                if let minutes = sleepMinutes {
-                                    Text(formatDuration(minutes))
-                                        .font(.system(.headline, design: .rounded, weight: .semibold))
-                                }
+                            // Centered duration
+                            if let minutes = sleepMinutes {
+                                Text(formatDuration(minutes))
+                                    .font(.system(.title2, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.white)
                             }
-                            Spacer()
-                        }
-                        .padding()
-                        .background(Theme.tertiaryBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
-                    }
 
-                    // Sleep stages if available
-                    if let stages = summary.sleepStages {
-                        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                            Text("sleep.stages".localized)
-                                .font(.system(.headline, design: .rounded, weight: .semibold))
-
-                            SleepStageRow(name: "sleep.rem".localized, minutes: stages.remMinutes, percent: stages.remPercent, color: .cyan)
-                            SleepStageRow(name: "sleep.core".localized, minutes: stages.coreMinutes, percent: stages.corePercent, color: .blue)
-                            SleepStageRow(name: "sleep.deep".localized, minutes: stages.deepMinutes, percent: stages.deepPercent, color: .purple)
-                            SleepStageRow(name: "sleep.awake".localized, minutes: stages.awakeMinutes, percent: stages.awakePercent, color: .orange)
-
-                            Divider()
-
-                            HStack {
-                                Text("sleep.totalSleep".localized)
-                                    .font(.system(.body, design: .rounded, weight: .semibold))
-                                Spacer()
-                                Text(formatDuration(stages.totalAsleepMinutes))
-                                    .font(.system(.body, design: .rounded, weight: .bold))
-                                    .foregroundStyle(Theme.sleep)
+                            // Sleep stages breakdown
+                            if let stages = summary.sleepStages {
+                                SleepStagesBreakdown(stages: stages, color: scoreColor)
                             }
                         }
-                        .padding()
-                        .background(Theme.tertiaryBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
+                        .padding(.bottom, Theme.Spacing.xl)
+                        .padding(.horizontal, Theme.Spacing.lg)
+                        .frame(maxWidth: .infinity)
                     }
                 }
-                .padding()
             }
-            .background(Theme.background)
-            .navigationTitle("Sleep Detail")
+            .background {
+                // Full-screen night sky background
+                GeometryReader { geo in
+                    ZStack(alignment: .top) {
+                        // Base background color
+                        Theme.background
+                            .ignoresSafeArea()
+
+                        // Night sky image - full screen coverage with subtle bottom fade
+                        Image("night_sky")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                            .overlay {
+                                // Slight dark overlay for readability
+                                LinearGradient(
+                                    colors: [
+                                        Color.black.opacity(0.15),
+                                        Color.black.opacity(0.1),
+                                        Color.black.opacity(0.2)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            }
+                            .mask {
+                                // Subtle fade at bottom
+                                VStack(spacing: 0) {
+                                    Rectangle()
+                                        .fill(Color.white)
+                                    LinearGradient(
+                                        colors: [Color.white, Color.white.opacity(0)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                    .frame(height: 60)
+                                }
+                            }
+                            .ignoresSafeArea()
+                    }
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("common.done".localized) {
+                ToolbarItem(placement: .principal) {
+                    Text("sleep.detail".localized)
+                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         dismiss()
+                    } label: {
+                        Text("common.done".localized)
+                            .foregroundStyle(.white)
                     }
                 }
             }
@@ -648,25 +719,3 @@ struct SleepDayDetailSheet: View, Identifiable {
     }
 }
 
-private struct SleepStageRow: View {
-    let name: String
-    let minutes: Double
-    let percent: Int
-    let color: Color
-
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(color)
-                .frame(width: 10, height: 10)
-            Text(name)
-                .font(.system(.body, design: .rounded))
-            Spacer()
-            Text("\(Int(minutes))m")
-                .font(.system(.body, design: .rounded, weight: .medium))
-            Text("(\(percent)%)")
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(Theme.secondaryText)
-        }
-    }
-}

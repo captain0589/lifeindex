@@ -6,6 +6,7 @@ public class MoodLog: NSManagedObject, Identifiable {
     @NSManaged public var mood: Int16
     @NSManaged public var note: String?
     @NSManaged public var date: Date?
+    @NSManaged public var imageFileName: String?
 }
 
 extension MoodLog {

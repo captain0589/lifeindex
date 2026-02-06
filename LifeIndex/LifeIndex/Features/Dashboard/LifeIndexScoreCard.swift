@@ -48,15 +48,10 @@ struct LifeIndexSection: View {
         VStack(spacing: Theme.Spacing.lg) {
             // MARK: - Today's Score Card
             VStack(spacing: Theme.Spacing.lg) {
-                // Header
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: "heart.circle.fill")
-                        .font(.system(size: Theme.IconSize.sm, weight: .semibold))
-                        .foregroundStyle(Theme.accentColor)
-                    Text("lifeindex.today".localized)
-                        .font(.system(.headline, design: .rounded, weight: .bold))
-                    Spacer()
-                }
+                // Header - centered
+                Text("LifeIndex")
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+                    .frame(maxWidth: .infinity)
 
                 // Score circle - tappable
                 Button {
@@ -64,29 +59,23 @@ struct LifeIndexSection: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .stroke(scoreColor.opacity(0.2), lineWidth: 12)
-                            .frame(width: 140, height: 140)
+                            .stroke(scoreColor.opacity(0.2), lineWidth: 14)
+                            .frame(width: 120, height: 120)
 
                         Circle()
                             .trim(from: 0, to: CGFloat(score) / 100.0)
                             .stroke(
                                 scoreColor,
-                                style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                                style: StrokeStyle(lineWidth: 14, lineCap: .round)
                             )
-                            .frame(width: 140, height: 140)
+                            .frame(width: 120, height: 120)
                             .rotationEffect(.degrees(-90))
                             .animation(.easeInOut(duration: 1.0), value: score)
 
-                        VStack(spacing: Theme.Spacing.xxs) {
-                            Text("\(score)")
-                                .font(Theme.scoreFont)
-                                .foregroundStyle(scoreColor)
-                                .contentTransition(.numericText())
-
-                            Text(label)
-                                .font(Theme.caption)
-                                .foregroundStyle(Theme.secondaryText)
-                        }
+                        Text("\(score)")
+                            .font(Theme.scoreFont)
+                            .foregroundStyle(scoreColor)
+                            .contentTransition(.numericText())
                     }
                 }
                 .buttonStyle(.plain)

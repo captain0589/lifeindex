@@ -84,7 +84,7 @@
 "activity.caloriesBurned" = "แคลอรี่ที่เผาผลาญ";
 
 // MARK: - Heart
-"heart.title" = "หัวใจ";
+"heart.title" = "อัตราการเต้นหัวใจ";
 "heart.restingHR" = "อัตราการเต้นหัวใจขณะพัก";
 "heart.hrv" = "HRV";
 "heart.bloodOxygen" = "ออกซิเจนในเลือด";
@@ -187,6 +187,35 @@
 "wellness.elevatedStress" = "เครียดสูง";
 "wellness.highStress" = "เครียดมาก";
 "wellness.basedOnHRV" = "จาก HRV: %@ ms";
+"wellness.logged" = "บันทึกแล้ว";
+"wellness.recentMoods" = "อารมณ์ล่าสุด";
+"wellness.moodTrends" = "แนวโน้มอารมณ์";
+"wellness.average" = "เฉลี่ย";
+"wellness.trend" = "แนวโน้ม";
+"wellness.streak" = "ต่อเนื่อง";
+"wellness.days" = "วัน";
+"wellness.improving" = "ดีขึ้น";
+"wellness.stable" = "คงที่";
+"wellness.declining" = "ลดลง";
+"wellness.moodCalendar" = "ปฏิทินอารมณ์";
+"wellness.viewMonthlyMoods" = "ดูรูปแบบอารมณ์รายเดือน";
+"wellness.monthlyStats" = "สถิติรายเดือน";
+"wellness.entries" = "รายการ";
+"wellness.avgMood" = "อารมณ์เฉลี่ย";
+"wellness.mostCommon" = "พบบ่อยสุด";
+"wellness.moodDetail" = "รายละเอียดอารมณ์";
+"wellness.note" = "โน้ต";
+"wellness.addMood" = "เพิ่มบันทึกอารมณ์";
+"wellness.editMood" = "แก้ไขอารมณ์";
+"wellness.entry" = "รายการ";
+"wellness.noMoodLogged" = "ยังไม่มีบันทึกอารมณ์สำหรับวันนี้";
+"wellness.addPhoto" = "เพิ่มรูปภาพ";
+"wellness.takePhoto" = "ถ่ายรูป";
+"wellness.choosePhoto" = "เลือก";
+"wellness.removePhoto" = "ลบ";
+"wellness.journalNote" = "บันทึกประจำวัน";
+"wellness.writeThoughts" = "เขียนความคิดของคุณ...";
+"wellness.deleteConfirm" = "ลบบันทึกอารมณ์นี้?";
 
 // MARK: - Settings
 "settings.title" = "ตั้งค่า";
@@ -396,6 +425,7 @@
 "sleep.good" = "ดี";
 "sleep.fair" = "พอใช้";
 "sleep.poor" = "ต้องปรับปรุง";
+"sleep.detail" = "รายละเอียดการนอน";
 
 // Recovery
 "recovery.dailyScores" = "คะแนนการฟื้นตัวรายวัน";
@@ -469,8 +499,14 @@
 "food.deleteConfirm" = "การดำเนินการนี้จะลบรายการอาหารนี้อย่างถาวร";
 "food.deleteEntry" = "ลบรายการ?";
 "food.goalChangeConfirm" = "การดำเนินการนี้จะเปลี่ยนเป้าหมายแคลอรี่รายวันจาก %d เป็น %d แคล ข้อมูลการติดตามจะยังคงอยู่ แต่ความคืบหน้าจะคำนวณจากเป้าหมายใหม่";
-"food.goal" = "เป้าหมาย:";
+"food.goal" = "เป้าหมาย";
 "food.logFoodButton" = "บันทึกอาหาร";
+"food.howCalculated" = "คำนวณอย่างไร?";
+"food.baseMetabolism" = "เมตาบอลิซึมพื้นฐาน";
+"food.bmi.underweight" = "น้ำหนักต่ำกว่าเกณฑ์";
+"food.bmi.normal" = "ปกติ";
+"food.bmi.overweight" = "น้ำหนักเกิน";
+"food.bmi.obese" = "อ้วน";
 
 // Settings
 "settings.appleHealthDesc" = "Apple Health เป็นแหล่งข้อมูลหลักสำหรับ LifeIndex";

@@ -16,6 +16,9 @@ struct FoodLogSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Theme.Spacing.xl) {
+                    // MARK: - Meal Type Selector
+                    MealTypeSelector(selectedMealType: $viewModel.selectedMealType)
+
                     // MARK: - Food Input
                     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         Text("food.whatDidYouEat".localized)
@@ -168,23 +171,25 @@ struct FoodLogSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
 
                         if viewModel.estimationSource != nil {
-                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                                 Text("food.adjustIfNeeded".localized)
-                                    .font(.system(.caption, design: .rounded))
+                                    .font(.system(.subheadline, design: .rounded))
                                     .foregroundStyle(Theme.secondaryText)
 
                                 // AI reasoning explanation
                                 if let reason = viewModel.estimationReason, !reason.isEmpty {
-                                    HStack(alignment: .top, spacing: Theme.Spacing.xs) {
-                                        Image(systemName: "info.circle")
-                                            .font(.system(.caption2))
-                                            .foregroundStyle(Theme.calories.opacity(0.8))
+                                    HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+                                        Image(systemName: "info.circle.fill")
+                                            .font(.system(.subheadline))
+                                            .foregroundStyle(Theme.calories)
                                         Text(reason)
-                                            .font(.system(.caption2, design: .rounded))
-                                            .foregroundStyle(Theme.tertiaryText)
+                                            .font(.system(.subheadline, design: .rounded))
+                                            .foregroundStyle(Theme.secondaryText)
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
-                                    .padding(.top, 2)
+                                    .padding(Theme.Spacing.sm)
+                                    .background(Theme.calories.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
                                 }
                             }
                         }
@@ -228,15 +233,53 @@ struct FoodLogSheet: View {
                 }
             }
         }
-        .onAppear {
-            viewModel.loadTodayLogs()
+        .task {
+            // Reset form immediately (lightweight operation)
+            viewModel.resetForm()
+            // Small delay for sheet animation, then focus
+            try? await Task.sleep(for: .milliseconds(250))
             focusedField = .food
+            // Load logs after UI is responsive (non-blocking)
+            viewModel.loadTodayLogs()
         }
         .onChange(of: viewModel.didSave) { _, didSave in
             if didSave {
                 isPresented = false
             }
         }
+    }
+}
+
+// MARK: - Meal Type Selector
+
+private struct MealTypeSelector: View {
+    @Binding var selectedMealType: MealType
+
+    private let mealTypes: [MealType] = [.breakfast, .lunch, .dinner, .snack]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(mealTypes) { mealType in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedMealType = mealType
+                    }
+                } label: {
+                    Text(mealType.localizedName)
+                        .font(.system(.subheadline, design: .rounded, weight: selectedMealType == mealType ? .semibold : .medium))
+                        .foregroundStyle(selectedMealType == mealType ? .white : Theme.primaryText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Theme.Spacing.sm)
+                        .background(selectedMealType == mealType ? Theme.calories : Theme.tertiaryBackground)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                .stroke(Theme.tertiaryBackground, lineWidth: 1)
+        )
     }
 }
 

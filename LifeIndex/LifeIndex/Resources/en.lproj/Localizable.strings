@@ -84,7 +84,7 @@
 "activity.caloriesBurned" = "Calories Burned";
 
 // MARK: - Heart
-"heart.title" = "Heart";
+"heart.title" = "Heart Rate";
 "heart.restingHR" = "Resting HR";
 "heart.hrv" = "HRV";
 "heart.bloodOxygen" = "Blood Oxygen";
@@ -126,6 +126,11 @@
 "food.macros" = "Macros";
 "food.macronutrients" = "Macronutrients";
 "food.left" = "left";
+"food.editGoals" = "Edit Goals";
+"food.calorieGoal" = "Calorie Goal";
+"food.macroTargets" = "Macro Targets";
+"food.customMacros" = "Set custom targets";
+"food.autoMacros" = "Auto-calculated based on calorie goal";
 
 // MARK: - Fitness
 "fitness.title" = "Fitness";
@@ -189,6 +194,38 @@
 "wellness.elevatedStress" = "Elevated";
 "wellness.highStress" = "High Stress";
 "wellness.basedOnHRV" = "Based on HRV: %@ ms";
+"wellness.logged" = "Logged";
+"wellness.recentMoods" = "Recent Moods";
+"wellness.moodTrends" = "Mood Trends";
+"wellness.average" = "Average";
+"wellness.trend" = "Trend";
+"wellness.streak" = "Streak";
+"wellness.days" = "days";
+"wellness.improving" = "Improving";
+"wellness.stable" = "Stable";
+"wellness.declining" = "Declining";
+"wellness.moodCalendar" = "Mood Calendar";
+"wellness.viewMonthlyMoods" = "View your monthly mood patterns";
+"wellness.monthlyStats" = "Monthly Stats";
+"wellness.entries" = "Entries";
+"wellness.avgMood" = "Avg Mood";
+"wellness.mostCommon" = "Most Common";
+"wellness.moodDetail" = "Mood Detail";
+"wellness.note" = "Note";
+"wellness.addMood" = "Add Mood Entry";
+"wellness.editMood" = "Edit Mood";
+"wellness.entry" = "entry";
+"wellness.noMoodLogged" = "No mood logged for this day";
+"wellness.addPhoto" = "Add Photo";
+"wellness.takePhoto" = "Take Photo";
+"wellness.choosePhoto" = "Choose";
+"wellness.removePhoto" = "Remove";
+"wellness.journalNote" = "Journal Note";
+"wellness.writeThoughts" = "Write your thoughts...";
+"wellness.deleteConfirm" = "Delete this mood entry?";
+"wellness.tapToViewDoubleTapToAdd" = "Tap to view, double-tap to add";
+"wellness.tapToAdd" = "Tap to add";
+"wellness.moodJournal" = "Mood Journal";
 
 // MARK: - Settings
 "settings.title" = "Settings";
@@ -299,6 +336,12 @@
 "streak.tip.reminders" = "Set reminders to never miss a day";
 "streak.tip.photos" = "Take photos of your meals for easier logging";
 "streak.tip.aiEstimate" = "Use AI estimation for quick calorie tracking";
+"streak.tapToView" = "Tap a day to view details";
+"streak.noLogsThisDay" = "No meals logged this day";
+
+// Food item counts
+"food.item" = "item";
+"food.items" = "items";
 
 // MARK: - Units
 "units.kcal" = "kcal";
@@ -398,6 +441,7 @@
 "sleep.good" = "Good";
 "sleep.fair" = "Fair";
 "sleep.poor" = "Poor";
+"sleep.detail" = "Sleep Detail";
 
 // Recovery
 "recovery.dailyScores" = "Daily Recovery Scores";
@@ -406,6 +450,29 @@
 "recovery.viewDetails" = "View Recovery Details";
 "recovery.explanation" = "Recovery score combines HRV (40%), resting heart rate (30%), and sleep duration (30%). Higher HRV and lower resting HR indicate better recovery.";
 "recovery.restRecommended" = "Rest day recommended";
+
+// Stress
+"stress.title" = "Stress Level";
+"stress.level" = "Stress Level";
+"stress.detail" = "Stress Detail";
+"stress.veryLow" = "Very Low";
+"stress.low" = "Low";
+"stress.moderate" = "Moderate";
+"stress.high" = "High";
+"stress.veryHigh" = "Very High";
+"stress.takeBreak" = "Consider taking a break";
+"stress.dailyLevels" = "Daily Stress Levels";
+"stress.indicators" = "Stress Indicators";
+"stress.hrvDesc" = "Lower HRV typically indicates higher stress levels";
+"stress.rhrDesc" = "Higher resting heart rate can indicate elevated stress";
+"stress.lowIndicator" = "Low Stress";
+"stress.moderateIndicator" = "Moderate";
+"stress.highIndicator" = "High Stress";
+"stress.rec.veryLow" = "Your stress is very low. Great job maintaining balance!";
+"stress.rec.low" = "Your stress is manageable. Keep up your healthy habits.";
+"stress.rec.moderate" = "Consider taking short breaks and deep breathing exercises.";
+"stress.rec.high" = "Try relaxation techniques like meditation or a short walk.";
+"stress.rec.veryHigh" = "High stress detected. Prioritize rest and relaxation today.";
 
 // LifeIndex Score
 "lifeindex.dailyScores" = "Daily Scores";
@@ -471,8 +538,14 @@
 "food.deleteConfirm" = "This will permanently delete this food entry.";
 "food.deleteEntry" = "Delete Entry?";
 "food.goalChangeConfirm" = "This will change your daily calorie goal from %d to %d kcal. Your tracking data will remain, but progress will be calculated against the new goal.";
-"food.goal" = "Goal:";
+"food.goal" = "Goal";
 "food.logFoodButton" = "Log Food";
+"food.howCalculated" = "How is this calculated?";
+"food.baseMetabolism" = "Base metabolism";
+"food.bmi.underweight" = "Underweight";
+"food.bmi.normal" = "Normal";
+"food.bmi.overweight" = "Overweight";
+"food.bmi.obese" = "Obese";
 
 // Settings
 "settings.appleHealthDesc" = "Apple Health is the primary data source for LifeIndex";

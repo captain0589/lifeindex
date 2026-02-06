@@ -19,16 +19,28 @@ struct FitnessView: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
     }
 
+    private var selectedDaySummary: DailyHealthSummary? {
+        let calendar = Calendar.current
+        // If today is selected, use todaySummary for most up-to-date data
+        if calendar.isDateInToday(selectedDate) {
+            return healthKitManager.todaySummary
+        }
+        // Otherwise look in weekly data
+        return healthKitManager.weeklyData.first { summary in
+            calendar.isDate(summary.date, inSameDayAs: selectedDate)
+        }
+    }
+
     private var stepsValue: Double {
-        healthKitManager.todaySummary.metrics[.steps] ?? 0
+        selectedDaySummary?.metrics[.steps] ?? 0
     }
 
     private var caloriesValue: Double {
-        healthKitManager.todaySummary.metrics[.activeCalories] ?? 0
+        selectedDaySummary?.metrics[.activeCalories] ?? 0
     }
 
     private var exerciseValue: Double {
-        healthKitManager.todaySummary.metrics[.workoutMinutes] ?? 0
+        selectedDaySummary?.metrics[.workoutMinutes] ?? 0
     }
 
     private var caloriesGoal: Double {

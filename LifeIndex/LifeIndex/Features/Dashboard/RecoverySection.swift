@@ -203,30 +203,41 @@ struct RecoverySection: View {
             // Daily Recovery Scores Section - separate card below
             if !weeklyRecoveryScores.isEmpty {
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                    Text("recovery.dailyScores".localized)
+                    Label("recovery.dailyScores".localized, systemImage: "list.bullet")
                         .font(.system(.headline, design: .rounded, weight: .semibold))
-                        .padding(.bottom, Theme.Spacing.sm)
-                    ForEach(weeklyRecoveryScores, id: \.date) { entry in
+
+                    ForEach(Array(weeklyRecoveryScores.reversed().enumerated()), id: \.element.date) { index, entry in
                         if let score = entry.score, let summary = weeklyData.first(where: { $0.date == entry.date }) {
                             Button {
                                 selectedDay = summary
                             } label: {
                                 HStack {
-                                    Text(entry.day)
-                                        .font(.system(.body, design: .rounded))
-                                        .frame(width: 40, alignment: .leading)
+                                    Text(entry.date.relativeDescription)
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .foregroundStyle(Theme.primaryText)
+                                        .frame(width: 90, alignment: .leading)
+
                                     Spacer()
-                                    Text("\(score)")
-                                        .font(.system(.body, design: .rounded, weight: .bold))
+
+                                    Text("\(score)/100")
+                                        .font(.system(.subheadline, design: .rounded, weight: .bold))
                                         .foregroundStyle(color)
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12, weight: .semibold))
+
+                                    Text(RecoveryScoreEngine.label(for: score))
+                                        .font(.system(.caption, design: .rounded))
                                         .foregroundStyle(Theme.secondaryText)
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(Theme.tertiaryText)
                                 }
-                                .padding(.vertical, Theme.Spacing.xs)
-                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+
+                            // Add divider between rows (not after the last one)
+                            if index < weeklyRecoveryScores.count - 1 {
+                                Divider()
+                            }
                         }
                     }
                 }
@@ -379,7 +390,7 @@ struct RecoveryDayDetailSheet: View, Identifiable {
             .navigationTitle("Recovery Detail")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("common.done".localized) {
                         dismiss()
                     }

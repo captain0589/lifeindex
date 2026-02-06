@@ -10,6 +10,8 @@ struct DashboardView: View {
     @State private var showChat = false
     @State private var nutritionManager: NutritionManager?
     @State private var foodLogViewModel: FoodLogViewModel?
+    @State private var isManualRefreshing = false
+    @State private var showRefreshSuccess = false
 
     private var isLateNight: Bool {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -17,7 +19,13 @@ struct DashboardView: View {
     }
 
     private func buildHealthContext() -> HealthContext {
-        HealthContext(
+        // Fetch mood data
+        let todayMoodLog = CoreDataStack.shared.fetchTodayMoodLog()
+        let weeklyMoodLogs = CoreDataStack.shared.fetchMoodLogsForWeek()
+        let weeklyMoodAverage: Double? = weeklyMoodLogs.isEmpty ? nil :
+            Double(weeklyMoodLogs.reduce(0) { $0 + Int($1.mood) }) / Double(weeklyMoodLogs.count)
+
+        return HealthContext(
             lifeIndexScore: viewModel.lifeIndexScore,
             scoreLabel: viewModel.scoreLabel,
             steps: viewModel.stepsValue > 0 ? viewModel.stepsValue : nil,
@@ -29,6 +37,9 @@ struct DashboardView: View {
             recoveryScore: viewModel.recoveryScore,
             workoutMinutes: viewModel.workoutMinutesValue > 0 ? viewModel.workoutMinutesValue : nil,
             insights: viewModel.insights.map { $0.text },
+            todayMood: todayMoodLog != nil ? Int(todayMoodLog!.mood) : nil,
+            todayMoodNote: todayMoodLog?.note,
+            weeklyMoodAverage: weeklyMoodAverage,
             weeklyScores: viewModel.weeklyScores,
             weeklyAverageScore: viewModel.weeklyAverageScore,
             historicalDays: viewModel.weeklyData
@@ -46,12 +57,50 @@ struct DashboardView: View {
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
                         Spacer()
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.9))
+
+                        HStack(spacing: Theme.Spacing.md) {
+                            // Refresh button
+                            Button {
+                                Task {
+                                    showRefreshSuccess = false
+                                    isManualRefreshing = true
+                                    await viewModel.loadData(forceRefresh: true)
+                                    isManualRefreshing = false
+                                    showRefreshSuccess = true
+
+                                    // Hide success indicator after 3 seconds
+                                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                                    withAnimation(.easeOut(duration: 0.3)) {
+                                        showRefreshSuccess = false
+                                    }
+                                }
+                            } label: {
+                                if isManualRefreshing || viewModel.isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.9)))
+                                        .scaleEffect(0.8)
+                                        .frame(width: 24, height: 24)
+                                } else if showRefreshSuccess {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 22, weight: .semibold))
+                                        .foregroundStyle(.green)
+                                        .transition(.scale.combined(with: .opacity))
+                                } else {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .font(.system(size: 22, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.9))
+                                }
+                            }
+                            .disabled(isManualRefreshing || viewModel.isLoading)
+
+                            // Settings button
+                            Button {
+                                showSettings = true
+                            } label: {
+                                Image(systemName: "gearshape.fill")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.9))
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -126,7 +175,6 @@ struct DashboardView: View {
                                 weeklyData: viewModel.weeklyData
                             )
                         }
-// ...existing code...
 
                         // MARK: - Mindfulness
                         if let mindful = viewModel.mindfulMinutes {
@@ -164,13 +212,6 @@ struct DashboardView: View {
             }
             .refreshable {
                 await viewModel.loadData(forceRefresh: true)
-            }
-            .overlay {
-                if viewModel.isLoading {
-                    ProgressView("Loading health data...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(.ultraThinMaterial)
-                }
             }
             .sheet(isPresented: $showFoodLog, onDismiss: {
                 viewModel.loadNutritionData()
@@ -3988,15 +4029,15 @@ struct ComparisonTile: View {
     var body: some View {
         VStack(spacing: Theme.Spacing.xs) {
             Text(value)
-                .font(.system(.title3, design: .rounded, weight: .bold))
+                .font(.system(.title2, design: .rounded, weight: .bold))
                 .foregroundStyle(color)
             Text(label)
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(Theme.primaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Theme.Spacing.md)
-        .background(color.opacity(0.08))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Spacing.md))
     }
 }

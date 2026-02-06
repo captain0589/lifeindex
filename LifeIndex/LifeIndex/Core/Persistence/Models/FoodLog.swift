@@ -19,6 +19,15 @@ enum MealType: Int16, CaseIterable, Identifiable {
         }
     }
 
+    var localizedName: String {
+        switch self {
+        case .breakfast: return "meal.breakfast".localized
+        case .lunch: return "meal.lunch".localized
+        case .dinner: return "meal.dinner".localized
+        case .snack: return "meal.snack".localized
+        }
+    }
+
     var icon: String {
         switch self {
         case .breakfast: return "sunrise.fill"

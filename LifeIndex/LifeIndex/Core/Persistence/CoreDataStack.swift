@@ -29,14 +29,19 @@ class CoreDataStack {
         }
     }
 
-    func saveMoodLog(mood: Int, note: String?, date: Date = .now) {
+    @discardableResult
+    func saveMoodLog(mood: Int, note: String?, imageFileName: String? = nil, date: Date = .now) -> MoodLog {
         let context = viewContext
+
+        // Create new log (allow multiple entries per day)
         let log = MoodLog(context: context)
         log.id = UUID()
         log.mood = Int16(mood)
         log.note = note
+        log.imageFileName = imageFileName
         log.date = date
         saveContext()
+        return log
     }
 
     func fetchMoodLogs(for date: Date) -> [MoodLog] {
@@ -58,6 +63,79 @@ class CoreDataStack {
             debugLog("Fetch mood logs error: \(error)")
             return []
         }
+    }
+
+    func fetchTodayMoodLog(for date: Date = .now) -> MoodLog? {
+        return fetchMoodLogs(for: date).first
+    }
+
+    func fetchMoodLogsForWeek(endingOn date: Date = .now) -> [MoodLog] {
+        let calendar = Calendar.current
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))!
+        let startDate = calendar.date(byAdding: .day, value: -7, to: calendar.startOfDay(for: date))!
+
+        let request: NSFetchRequest<MoodLog> = MoodLog.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date < %@",
+            startDate as NSDate,
+            endOfDay as NSDate
+        )
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            debugLog("Fetch weekly mood logs error: \(error)")
+            return []
+        }
+    }
+
+    func fetchMoodLogsForMonth(year: Int, month: Int) -> [MoodLog] {
+        let calendar = Calendar.current
+        guard let startOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1)),
+              let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth) else {
+            return []
+        }
+
+        let request: NSFetchRequest<MoodLog> = MoodLog.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date < %@",
+            startOfMonth as NSDate,
+            endOfMonth as NSDate
+        )
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            debugLog("Fetch monthly mood logs error: \(error)")
+            return []
+        }
+    }
+
+    func deleteMoodLog(_ log: MoodLog) {
+        // Delete associated image if exists
+        if let imageFileName = log.imageFileName {
+            MoodImageManager.shared.deleteImage(fileName: imageFileName)
+        }
+        viewContext.delete(log)
+        saveContext()
+    }
+
+    func updateMoodLog(_ log: MoodLog, mood: Int, note: String?, imageFileName: String?) {
+        log.mood = Int16(mood)
+        log.note = note
+
+        // Handle image changes
+        if log.imageFileName != imageFileName {
+            // Delete old image if it exists
+            if let oldFileName = log.imageFileName {
+                MoodImageManager.shared.deleteImage(fileName: oldFileName)
+            }
+            log.imageFileName = imageFileName
+        }
+
+        saveContext()
     }
 
     // MARK: - Food Log

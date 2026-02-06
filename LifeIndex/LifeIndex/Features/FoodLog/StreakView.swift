@@ -8,6 +8,8 @@ struct StreakView: View {
     @State private var selectedMonth: Date = Date()
     @State private var daysWithLogs: Set<Date> = []
     @State private var showConfetti = false
+    @State private var selectedDate: Date? = nil
+    @State private var selectedDateLogs: [FoodLog] = []
 
     private let calendar = Calendar.current
 
@@ -25,8 +27,32 @@ struct StreakView: View {
                     // MARK: - Monthly Calendar
                     StreakCalendarCard(
                         selectedMonth: $selectedMonth,
-                        daysWithLogs: daysWithLogs
+                        selectedDate: $selectedDate,
+                        daysWithLogs: daysWithLogs,
+                        onDateTap: { date in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if selectedDate == date {
+                                    selectedDate = nil
+                                    selectedDateLogs = []
+                                } else {
+                                    selectedDate = date
+                                    selectedDateLogs = CoreDataStack.shared.fetchFoodLogs(for: date)
+                                }
+                            }
+                        }
                     )
+
+                    // MARK: - Selected Date Details
+                    if let date = selectedDate {
+                        SelectedDateDetailCard(
+                            date: date,
+                            logs: selectedDateLogs
+                        )
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .top)),
+                            removal: .opacity
+                        ))
+                    }
 
                     // MARK: - Missions & Achievements
                     MissionsCard(
@@ -264,7 +290,9 @@ private struct StatBubble: View {
 
 private struct StreakCalendarCard: View {
     @Binding var selectedMonth: Date
+    @Binding var selectedDate: Date?
     let daysWithLogs: Set<Date>
+    let onDateTap: (Date) -> Void
 
     private let calendar = Calendar.current
     private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
@@ -358,7 +386,9 @@ private struct StreakCalendarCard: View {
                             date: date,
                             hasLog: daysWithLogs.contains(calendar.startOfDay(for: date)),
                             isToday: calendar.isDateInToday(date),
-                            isFuture: date > Date()
+                            isFuture: date > Date(),
+                            isSelected: selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false,
+                            onTap: { onDateTap(date) }
                         )
                     } else {
                         Color.clear
@@ -366,6 +396,11 @@ private struct StreakCalendarCard: View {
                     }
                 }
             }
+
+            // Hint text
+            Text("streak.tapToView".localized)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Theme.tertiaryText)
         }
         .padding(Theme.Spacing.lg)
         .background(.regularMaterial)
@@ -380,44 +415,60 @@ private struct CalendarDayCell: View {
     let hasLog: Bool
     let isToday: Bool
     let isFuture: Bool
+    let isSelected: Bool
+    let onTap: () -> Void
 
     private let calendar = Calendar.current
 
     var body: some View {
-        ZStack {
-            if hasLog {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.orange, .red.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white)
-            } else if isToday {
-                Circle()
-                    .fill(Theme.tertiaryBackground)
-
-                Circle()
-                    .stroke(Theme.calories, lineWidth: 2)
-
-                Text("\(calendar.component(.day, from: date))")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(Theme.primaryText)
-            } else {
-                Circle()
-                    .fill(isFuture ? Theme.tertiaryBackground.opacity(0.3) : Theme.tertiaryBackground)
-
-                Text("\(calendar.component(.day, from: date))")
-                    .font(.system(.caption, design: .rounded, weight: .medium))
-                    .foregroundStyle(isFuture ? Theme.secondaryText.opacity(0.4) : Theme.primaryText)
+        Button {
+            if !isFuture {
+                onTap()
             }
+        } label: {
+            ZStack {
+                if hasLog {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [.orange, .red.opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white)
+                } else if isToday {
+                    Circle()
+                        .fill(Theme.tertiaryBackground)
+
+                    Circle()
+                        .stroke(Theme.calories, lineWidth: 2)
+
+                    Text("\(calendar.component(.day, from: date))")
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                        .foregroundStyle(Theme.primaryText)
+                } else {
+                    Circle()
+                        .fill(isFuture ? Theme.tertiaryBackground.opacity(0.3) : Theme.tertiaryBackground)
+
+                    Text("\(calendar.component(.day, from: date))")
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(isFuture ? Theme.secondaryText.opacity(0.4) : Theme.primaryText)
+                }
+
+                // Selection ring
+                if isSelected {
+                    Circle()
+                        .stroke(Theme.calories, lineWidth: 3)
+                }
+            }
+            .frame(height: 36)
         }
-        .frame(height: 36)
+        .buttonStyle(.plain)
+        .disabled(isFuture)
     }
 }
 
@@ -648,5 +699,127 @@ private struct StreakTipsCard: View {
         .padding(Theme.Spacing.lg)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+// MARK: - Selected Date Detail Card
+
+private struct SelectedDateDetailCard: View {
+    let date: Date
+    let logs: [FoodLog]
+
+    private var totalCalories: Int {
+        logs.reduce(0) { $0 + Int($1.calories) }
+    }
+
+    private var totalProtein: Double {
+        logs.reduce(0) { $0 + $1.protein }
+    }
+
+    private var totalCarbs: Double {
+        logs.reduce(0) { $0 + $1.carbs }
+    }
+
+    private var totalFat: Double {
+        logs.reduce(0) { $0 + $1.fat }
+    }
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(dateFormatter.string(from: date))
+                        .font(.system(.headline, design: .rounded, weight: .bold))
+
+                    if logs.isEmpty {
+                        Text("streak.noLogsThisDay".localized)
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Theme.secondaryText)
+                    } else {
+                        Text("\(logs.count) " + (logs.count == 1 ? "food.item".localized : "food.items".localized))
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(Theme.secondaryText)
+                    }
+                }
+
+                Spacer()
+
+                // Total calories badge
+                if !logs.isEmpty {
+                    Text("\(totalCalories) " + "units.kcal".localized)
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.vertical, Theme.Spacing.xs)
+                        .background(Theme.calories)
+                        .clipShape(Capsule())
+                }
+            }
+
+            if !logs.isEmpty {
+                // Macro summary
+                HStack(spacing: Theme.Spacing.lg) {
+                    MacroSummaryItem(label: "P", value: Int(totalProtein), color: .pink)
+                    MacroSummaryItem(label: "C", value: Int(totalCarbs), color: .orange)
+                    MacroSummaryItem(label: "F", value: Int(totalFat), color: .blue)
+                }
+                .padding(.vertical, Theme.Spacing.sm)
+
+                Divider()
+
+                // Food items list
+                ForEach(logs) { log in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(log.name ?? "Unknown")
+                                .font(.system(.subheadline, design: .rounded, weight: .medium))
+
+                            Text(log.mealTypeEnum.displayName)
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+
+                        Spacer()
+
+                        Text("\(log.calories) " + "units.kcal".localized)
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            .foregroundStyle(Theme.calories)
+                    }
+                    .padding(.vertical, Theme.Spacing.xs)
+                }
+            }
+        }
+        .padding(Theme.Spacing.lg)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+// MARK: - Macro Summary Item
+
+private struct MacroSummaryItem: View {
+    let label: String
+    let value: Int
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(.system(.caption, design: .rounded, weight: .bold))
+                .foregroundStyle(color)
+            Text("\(value)g")
+                .font(.system(.caption, design: .rounded, weight: .medium))
+        }
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.vertical, Theme.Spacing.xs)
+        .background(color.opacity(0.1))
+        .clipShape(Capsule())
     }
 }

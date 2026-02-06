@@ -50,7 +50,46 @@ class FoodLogViewModel: ObservableObject {
 
     init(nutritionManager: NutritionManager) {
         self.nutritionManager = nutritionManager
-        checkAIAvailability()
+        self.selectedMealType = Self.detectMealType()
+        // Check AI availability in background to avoid blocking init
+        Task { @MainActor in
+            checkAIAvailability()
+        }
+    }
+
+    // MARK: - Auto Meal Type Detection
+
+    static func detectMealType() -> MealType {
+        let hour = Calendar.current.component(.hour, from: Date())
+
+        switch hour {
+        case 5..<11:  // 5:00 AM - 10:59 AM
+            return .breakfast
+        case 11..<16: // 11:00 AM - 3:59 PM
+            return .lunch
+        case 16..<23: // 4:00 PM - 10:59 PM
+            return .dinner
+        default:      // 11:00 PM - 4:59 AM (late night snack)
+            return .dinner
+        }
+    }
+
+    // MARK: - Reset Form
+
+    func resetForm() {
+        foodDescription = ""
+        selectedMealType = Self.detectMealType()
+        caloriesText = ""
+        proteinText = ""
+        carbsText = ""
+        fatText = ""
+        selectedPhoto = nil
+        selectedImage = nil
+        estimationSource = nil
+        estimationReason = nil
+        isEstimating = false
+        isSaving = false
+        didSave = false
     }
 
     // MARK: - AI Availability
