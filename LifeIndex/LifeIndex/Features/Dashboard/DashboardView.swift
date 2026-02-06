@@ -106,22 +106,6 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity)
 
                     if viewModel.hasData {
-                        // Show banner if using yesterday's data
-                        if viewModel.showingYesterdayData {
-                            HStack(spacing: Theme.Spacing.sm) {
-                                Image(systemName: "clock.arrow.circlepath")
-                                    .font(.system(size: Theme.IconSize.sm, weight: .medium))
-                                Text("Showing most recent data — today hasn't synced yet")
-                                    .font(.system(.caption, design: .rounded))
-                            }
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, Theme.Spacing.sm)
-                            .padding(.horizontal, Theme.Spacing.md)
-                            .frame(maxWidth: .infinity)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-
                         // Late night hint - show as separate card
                         if isLateNight && viewModel.lifeIndexScore < 30 {
                             LateNightHintCard()
