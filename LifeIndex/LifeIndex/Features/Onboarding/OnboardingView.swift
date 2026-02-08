@@ -10,47 +10,119 @@ struct OnboardingView: View {
     @State private var showError = false
     @State private var errorMessage = ""
 
+    private let totalPages = 5
+
     var body: some View {
-        VStack(spacing: 0) {
-            TabView(selection: $currentPage) {
-                // Page 0: Language Selection
-                LanguageSelectionPage(languageManager: languageManager)
-                    .tag(0)
+        ZStack {
+            // Background
+            Theme.background
+                .ignoresSafeArea()
 
-                // Page 1: Welcome
-                OnboardingPage(
-                    icon: "heart.text.clipboard.fill",
-                    iconColor: .red,
-                    title: "onboarding.welcome".localized,
-                    description: "onboarding.welcomeSubtitle".localized
-                )
-                .tag(1)
+            // Gradient overlay
+            LinearGradient(
+                colors: [
+                    Theme.accentColor.opacity(0.15),
+                    Theme.accentColor.opacity(0.05),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 400)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea()
 
-                // Page 2: Features
-                OnboardingFeaturesPage()
-                    .tag(2)
+            VStack(spacing: 0) {
+                // Content
+                TabView(selection: $currentPage) {
+                    // Page 0: Language Selection
+                    LanguageSelectionPage(languageManager: languageManager)
+                        .tag(0)
 
-                // Page 3: Privacy
-                OnboardingPage(
-                    icon: "lock.shield.fill",
-                    iconColor: .green,
-                    title: "Your Data, Your Device",
-                    description: "LifeIndex reads from Apple Health. Your data stays on your device and is never sold."
-                )
-                .tag(3)
+                    // Page 1: Welcome
+                    WelcomePage()
+                        .tag(1)
 
-                // Page 4: Health Access
-                HealthAccessPage(
-                    isRequestingPermission: $isRequestingPermission,
-                    hasCompletedOnboarding: $hasCompletedOnboarding,
-                    requestHealthAccess: requestHealthAccess
-                )
-                .tag(4)
+                    // Page 2: Features
+                    FeaturesPage()
+                        .tag(2)
+
+                    // Page 3: Privacy
+                    PrivacyPage()
+                        .tag(3)
+
+                    // Page 4: Health Access
+                    HealthAccessPage(
+                        isRequestingPermission: $isRequestingPermission,
+                        hasCompletedOnboarding: $hasCompletedOnboarding,
+                        requestHealthAccess: requestHealthAccess
+                    )
+                    .tag(4)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+
+                // Custom page indicator and navigation
+                VStack(spacing: Theme.Spacing.lg) {
+                    // Page dots
+                    HStack(spacing: 8) {
+                        ForEach(0..<totalPages, id: \.self) { index in
+                            Circle()
+                                .fill(currentPage == index ? Theme.accentColor : Theme.secondaryText.opacity(0.3))
+                                .frame(width: currentPage == index ? 10 : 8, height: currentPage == index ? 10 : 8)
+                                .animation(.easeInOut(duration: 0.2), value: currentPage)
+                        }
+                    }
+                    .padding(.top, Theme.Spacing.md)
+
+                    // Navigation buttons
+                    if currentPage < totalPages - 1 {
+                        HStack(spacing: Theme.Spacing.lg) {
+                            if currentPage > 0 {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        currentPage -= 1
+                                    }
+                                } label: {
+                                    HStack(spacing: Theme.Spacing.xs) {
+                                        Image(systemName: "chevron.left")
+                                            .font(.system(size: 14, weight: .semibold))
+                                        Text("common.back".localized)
+                                    }
+                                    .font(.system(.body, design: .rounded, weight: .medium))
+                                    .foregroundStyle(Theme.secondaryText)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(.regularMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    currentPage += 1
+                                }
+                            } label: {
+                                HStack(spacing: Theme.Spacing.xs) {
+                                    Text("common.next".localized)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14, weight: .semibold))
+                                }
+                                .font(.system(.body, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Theme.accentColor)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, Theme.Spacing.xl)
+                    }
+                }
+                .padding(.bottom, Theme.Spacing.xxl)
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .indexViewStyle(.page(backgroundDisplayMode: .always))
         }
-        .pageBackground(showGradient: true, gradientHeight: 500)
         .alert("common.error".localized, isPresented: $showError) {
             Button("common.ok".localized) {}
         } message: {
@@ -75,7 +147,7 @@ struct OnboardingView: View {
 
 // MARK: - Language Selection Page
 
-struct LanguageSelectionPage: View {
+private struct LanguageSelectionPage: View {
     @ObservedObject var languageManager: LanguageManager
     @State private var selectedLanguage: AppLanguage = .english
 
@@ -83,14 +155,28 @@ struct LanguageSelectionPage: View {
         VStack(spacing: Theme.Spacing.xl) {
             Spacer()
 
-            // Globe icon
-            Image(systemName: "globe")
-                .font(.system(size: Theme.FontSize.colossal))
-                .foregroundStyle(Theme.accentColor)
+            // Icon with background
+            ZStack {
+                Circle()
+                    .fill(Theme.accentColor.opacity(0.15))
+                    .frame(width: 120, height: 120)
 
-            Text("onboarding.selectLanguage".localized)
-                .font(Theme.largeTitle)
-                .multilineTextAlignment(.center)
+                Image(systemName: "globe")
+                    .font(.system(size: 50, weight: .medium))
+                    .foregroundStyle(Theme.accentColor)
+            }
+
+            VStack(spacing: Theme.Spacing.sm) {
+                Text("onboarding.selectLanguage".localized)
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .multilineTextAlignment(.center)
+
+                Text("onboarding.selectLanguageDesc".localized)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
 
             // Language options
             VStack(spacing: Theme.Spacing.md) {
@@ -99,14 +185,16 @@ struct LanguageSelectionPage: View {
                         language: language,
                         isSelected: selectedLanguage == language,
                         action: {
-                            selectedLanguage = language
-                            languageManager.setLanguage(language)
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedLanguage = language
+                                languageManager.setLanguage(language)
+                            }
                         }
                     )
                 }
             }
-            .padding(.horizontal, Theme.Spacing.xxl)
-            .padding(.top, Theme.Spacing.xl)
+            .padding(.horizontal, Theme.Spacing.xl)
+            .padding(.top, Theme.Spacing.md)
 
             Spacer()
             Spacer()
@@ -119,7 +207,7 @@ struct LanguageSelectionPage: View {
 
 // MARK: - Language Option Button
 
-struct LanguageOptionButton: View {
+private struct LanguageOptionButton: View {
     let language: AppLanguage
     let isSelected: Bool
     let action: () -> Void
@@ -128,30 +216,36 @@ struct LanguageOptionButton: View {
         Button(action: action) {
             HStack(spacing: Theme.Spacing.md) {
                 Text(language.flag)
-                    .font(.system(size: Theme.FontSize.title))
+                    .font(.system(size: 28))
 
                 Text(language.displayName)
-                    .font(Theme.rounded(.title3, weight: .semibold))
+                    .font(.system(.body, design: .rounded, weight: .semibold))
                     .foregroundStyle(Theme.primaryText)
 
                 Spacer()
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: Theme.IconSize.lg))
+                        .font(.system(size: 24))
                         .foregroundStyle(Theme.accentColor)
                 } else {
                     Circle()
                         .strokeBorder(Theme.secondaryText.opacity(0.3), lineWidth: 2)
-                        .frame(width: Theme.IconSize.lg, height: Theme.IconSize.lg)
+                        .frame(width: 24, height: 24)
                 }
             }
             .padding(Theme.Spacing.lg)
-            .background(isSelected ? Theme.accentColor.opacity(0.1) : Theme.tertiaryBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous))
+            .background {
+                if isSelected {
+                    Theme.accentColor.opacity(0.1)
+                } else {
+                    Rectangle().fill(.regularMaterial)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .strokeBorder(Theme.accentColor, lineWidth: 2)
                 }
             }
@@ -160,28 +254,69 @@ struct LanguageOptionButton: View {
     }
 }
 
-// MARK: - Onboarding Features Page
+// MARK: - Welcome Page
 
-struct OnboardingFeaturesPage: View {
+private struct WelcomePage: View {
     var body: some View {
         VStack(spacing: Theme.Spacing.xl) {
             Spacer()
 
-            Image(systemName: "chart.xyaxis.line")
-                .font(.system(size: Theme.FontSize.colossal))
-                .foregroundStyle(.blue)
+            // App icon style
+            ZStack {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Theme.accentColor, Theme.accentColor.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
 
-            Text("Track Everything")
-                .font(Theme.largeTitle)
-                .multilineTextAlignment(.center)
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                FeatureRow(icon: "moon.zzz.fill", color: Theme.sleep, text: "onboarding.features.sleep".localized)
-                FeatureRow(icon: "figure.run", color: Theme.activity, text: "onboarding.features.activity".localized)
-                FeatureRow(icon: "fork.knife", color: Theme.calories, text: "onboarding.features.nutrition".localized)
-                FeatureRow(icon: "sparkles", color: Theme.mindfulness, text: "onboarding.features.insights".localized)
+                Image(systemName: "heart.text.clipboard.fill")
+                    .font(.system(size: 50, weight: .medium))
+                    .foregroundStyle(.white)
             }
-            .padding(.horizontal, Theme.Spacing.xxl)
+            .shadow(color: Theme.accentColor.opacity(0.3), radius: 20, y: 10)
+
+            VStack(spacing: Theme.Spacing.sm) {
+                Text("onboarding.welcome".localized)
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .multilineTextAlignment(.center)
+
+                Text("onboarding.welcomeSubtitle".localized)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+
+            // Score preview
+            VStack(spacing: Theme.Spacing.md) {
+                ZStack {
+                    Circle()
+                        .stroke(Theme.accentColor.opacity(0.2), lineWidth: 10)
+                        .frame(width: 100, height: 100)
+
+                    Circle()
+                        .trim(from: 0, to: 0.78)
+                        .stroke(
+                            LinearGradient(colors: [.green, .green.opacity(0.7)], startPoint: .leading, endPoint: .trailing),
+                            style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                        )
+                        .frame(width: 100, height: 100)
+                        .rotationEffect(.degrees(-90))
+
+                    Text("78")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(.green)
+                }
+
+                Text("onboarding.yourScore".localized)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+            }
+            .padding(.top, Theme.Spacing.lg)
 
             Spacer()
             Spacer()
@@ -189,30 +324,156 @@ struct OnboardingFeaturesPage: View {
     }
 }
 
-struct FeatureRow: View {
+// MARK: - Features Page
+
+private struct FeaturesPage: View {
+    var body: some View {
+        VStack(spacing: Theme.Spacing.xl) {
+            Spacer()
+
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.15))
+                    .frame(width: 120, height: 120)
+
+                Image(systemName: "chart.xyaxis.line")
+                    .font(.system(size: 50, weight: .medium))
+                    .foregroundStyle(.blue)
+            }
+
+            VStack(spacing: Theme.Spacing.sm) {
+                Text("onboarding.trackEverything".localized)
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .multilineTextAlignment(.center)
+
+                Text("onboarding.trackEverythingDesc".localized)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+
+            // Features grid
+            VStack(spacing: Theme.Spacing.md) {
+                HStack(spacing: Theme.Spacing.md) {
+                    FeatureCard(icon: "chart.pie.fill", color: Theme.accentColor, title: "onboarding.features.lifeindex".localized)
+                    FeatureCard(icon: "moon.zzz.fill", color: Theme.sleep, title: "onboarding.features.sleep".localized)
+                }
+                HStack(spacing: Theme.Spacing.md) {
+                    FeatureCard(icon: "flame.fill", color: Theme.calories, title: "onboarding.features.calories".localized)
+                    FeatureCard(icon: "face.smiling.fill", color: .purple, title: "onboarding.features.mood".localized)
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+
+            Spacer()
+            Spacer()
+        }
+    }
+}
+
+private struct FeatureCard: View {
     let icon: String
     let color: Color
+    let title: String
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(color)
+
+            Text(title)
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(Theme.primaryText)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Theme.Spacing.lg)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+// MARK: - Privacy Page
+
+private struct PrivacyPage: View {
+    var body: some View {
+        VStack(spacing: Theme.Spacing.xl) {
+            Spacer()
+
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.15))
+                    .frame(width: 120, height: 120)
+
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 50, weight: .medium))
+                    .foregroundStyle(.green)
+            }
+
+            VStack(spacing: Theme.Spacing.sm) {
+                Text("onboarding.privacy".localized)
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .multilineTextAlignment(.center)
+
+                Text("onboarding.privacyDesc".localized)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+
+            // Privacy features
+            VStack(spacing: Theme.Spacing.md) {
+                PrivacyFeatureRow(icon: "iphone", text: "onboarding.privacy.onDevice".localized)
+                PrivacyFeatureRow(icon: "hand.raised.fill", text: "onboarding.privacy.noSelling".localized)
+                PrivacyFeatureRow(icon: "apple.logo", text: "onboarding.privacy.appleHealth".localized)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+            .padding(.top, Theme.Spacing.md)
+
+            Spacer()
+            Spacer()
+        }
+    }
+}
+
+private struct PrivacyFeatureRow: View {
+    let icon: String
     let text: String
 
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             Image(systemName: icon)
-                .font(.system(size: Theme.IconSize.md))
-                .foregroundStyle(color)
-                .frame(width: Theme.IconFrame.lg, height: Theme.IconFrame.lg)
-                .background(color.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.green)
+                .frame(width: 44, height: 44)
+                .background(.green.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             Text(text)
-                .font(Theme.body)
+                .font(.system(.body, design: .rounded))
                 .foregroundStyle(Theme.primaryText)
+
+            Spacer()
+
+            Image(systemName: "checkmark")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.green)
         }
+        .padding(Theme.Spacing.md)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
 // MARK: - Health Access Page
 
-struct HealthAccessPage: View {
+private struct HealthAccessPage: View {
     @Binding var isRequestingPermission: Bool
     @Binding var hasCompletedOnboarding: Bool
     let requestHealthAccess: () -> Void
@@ -221,82 +482,96 @@ struct HealthAccessPage: View {
         VStack(spacing: Theme.Spacing.xl) {
             Spacer()
 
-            Image(systemName: "heart.circle.fill")
-                .font(.system(size: Theme.FontSize.colossal))
-                .foregroundStyle(.red)
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(Color.red.opacity(0.15))
+                    .frame(width: 120, height: 120)
 
-            Text("onboarding.healthPermission".localized)
-                .font(Theme.largeTitle)
-                .multilineTextAlignment(.center)
+                Image(systemName: "heart.circle.fill")
+                    .font(.system(size: 60, weight: .medium))
+                    .foregroundStyle(.red)
+            }
 
-            Text("onboarding.healthPermissionDesc".localized)
-                .font(Theme.body)
-                .foregroundStyle(Theme.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, Theme.Spacing.xxl)
+            VStack(spacing: Theme.Spacing.sm) {
+                Text("onboarding.healthPermission".localized)
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .multilineTextAlignment(.center)
+
+                Text("onboarding.healthPermissionDesc".localized)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+
+            // Health data icons
+            HStack(spacing: Theme.Spacing.lg) {
+                HealthDataIcon(icon: "heart.fill", color: .red)
+                HealthDataIcon(icon: "figure.walk", color: .green)
+                HealthDataIcon(icon: "moon.zzz.fill", color: Theme.sleep)
+                HealthDataIcon(icon: "flame.fill", color: .orange)
+            }
+            .padding(.top, Theme.Spacing.md)
 
             Spacer()
 
+            // Buttons
             VStack(spacing: Theme.Spacing.md) {
                 Button {
                     requestHealthAccess()
                 } label: {
                     if isRequestingPermission {
                         ProgressView()
+                            .tint(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: Theme.ComponentSize.buttonHeightLarge)
+                            .frame(height: 56)
                     } else {
-                        Text("onboarding.allowAccess".localized)
-                            .font(Theme.headline)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: Theme.ComponentSize.buttonHeightLarge)
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                            Text("onboarding.allowAccess".localized)
+                                .font(.system(.body, design: .rounded, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .background(
+                    LinearGradient(
+                        colors: [.red, .red.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .disabled(isRequestingPermission)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md))
 
-                Button("onboarding.skip".localized) {
+                Button {
                     hasCompletedOnboarding = true
+                } label: {
+                    Text("onboarding.skip".localized)
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(Theme.secondaryText)
                 }
-                .font(Theme.body)
-                .foregroundStyle(Theme.secondaryText)
             }
-            .padding(.horizontal, Theme.Spacing.xxl)
+            .padding(.horizontal, Theme.Spacing.xl)
             .padding(.bottom, Theme.Spacing.xxl)
         }
     }
 }
 
-// MARK: - Onboarding Page (Generic)
-
-struct OnboardingPage: View {
+private struct HealthDataIcon: View {
     let icon: String
-    let iconColor: Color
-    let title: String
-    let description: String
+    let color: Color
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.xl) {
-            Spacer()
-
-            Image(systemName: icon)
-                .font(.system(size: Theme.FontSize.colossal))
-                .foregroundStyle(iconColor)
-
-            Text(title)
-                .font(Theme.largeTitle)
-                .multilineTextAlignment(.center)
-
-            Text(description)
-                .font(Theme.body)
-                .foregroundStyle(Theme.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, Theme.Spacing.xxl)
-
-            Spacer()
-            Spacer()
-        }
+        Image(systemName: icon)
+            .font(.system(size: 24, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: 56, height: 56)
+            .background(color.opacity(0.15))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

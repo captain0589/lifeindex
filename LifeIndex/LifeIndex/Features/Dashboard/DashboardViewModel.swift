@@ -221,9 +221,14 @@ class DashboardViewModel: ObservableObject {
         yesterdayScore = weeklyScores
             .first(where: { calendar.isDateInYesterday($0.date) })
             .map { $0.score }
-        // Weekly average
-        if !weeklyScores.isEmpty {
-            weeklyAverageScore = weeklyScores.reduce(0) { $0 + $1.score } / weeklyScores.count
+        // Weekly average - use final scores for all days for consistent comparison
+        // (excludes time-aware adjustments so average is comparable across the week)
+        let finalScoresForAverage = manager.weeklyData.compactMap { day -> Int? in
+            guard !day.metrics.isEmpty else { return nil }
+            return LifeIndexScoreEngine.calculateFinalScore(from: day)
+        }
+        if !finalScoresForAverage.isEmpty {
+            weeklyAverageScore = finalScoresForAverage.reduce(0, +) / finalScoresForAverage.count
         } else {
             weeklyAverageScore = nil
         }

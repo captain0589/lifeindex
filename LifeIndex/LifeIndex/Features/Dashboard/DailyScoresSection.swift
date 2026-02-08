@@ -53,7 +53,9 @@ struct DailyScoresSection: View {
         }
         .cardStyle()
         .sheet(item: $selectedDayForDetail) { date in
-            DayDetailSheet(date: date, weeklyData: weeklyData)
+            // Look up pre-calculated score for consistency
+            let score = weeklyScores.first { Calendar.current.isDate($0.date, inSameDayAs: date) }?.score
+            DayDetailSheet(date: date, weeklyData: weeklyData, preCalculatedScore: score)
         }
     }
 }

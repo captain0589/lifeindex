@@ -19,6 +19,8 @@
 "common.yesterday" = "Yesterday";
 "common.thisWeek" = "This Week";
 "common.weeklyAvg" = "Weekly Avg";
+"common.back" = "Back";
+"common.next" = "Next";
 
 // MARK: - Tabs
 "tab.home" = "Home";
@@ -271,16 +273,27 @@
 "onboarding.welcome" = "Welcome to LifeIndex";
 "onboarding.welcomeSubtitle" = "Your personal health companion";
 "onboarding.selectLanguage" = "Select your language";
+"onboarding.selectLanguageDesc" = "Choose your preferred language for the app";
 "onboarding.continue" = "Continue";
 "onboarding.getStarted" = "Get Started";
 "onboarding.healthPermission" = "Health Data Access";
 "onboarding.healthPermissionDesc" = "LifeIndex needs access to your health data to provide personalized insights and track your progress.";
 "onboarding.allowAccess" = "Allow Access";
 "onboarding.skip" = "Skip for now";
+"onboarding.yourScore" = "Your LifeIndex Score";
+"onboarding.trackEverythingDesc" = "Monitor all aspects of your health in one place";
+"onboarding.privacy" = "Your Privacy Matters";
+"onboarding.privacyDesc" = "Your health data stays secure and private";
+"onboarding.privacy.onDevice" = "All data stored on your device";
+"onboarding.privacy.noSelling" = "We never sell your data";
+"onboarding.privacy.appleHealth" = "Syncs with Apple Health";
 "onboarding.features.sleep" = "Track your sleep quality";
 "onboarding.features.activity" = "Monitor daily activity";
 "onboarding.features.nutrition" = "Log food & nutrition";
 "onboarding.features.insights" = "Get AI-powered insights";
+"onboarding.features.lifeindex" = "LifeIndex Score";
+"onboarding.features.calories" = "Track Calories";
+"onboarding.features.mood" = "Log your Mood";
 
 // MARK: - Streak
 "streak.title" = "Streaks & Missions";

@@ -19,6 +19,8 @@
 "common.yesterday" = "เมื่อวาน";
 "common.thisWeek" = "สัปดาห์นี้";
 "common.weeklyAvg" = "เฉลี่ยสัปดาห์";
+"common.back" = "ย้อนกลับ";
+"common.next" = "ถัดไป";
 
 // MARK: - Tabs
 "tab.home" = "หน้าแรก";
@@ -261,16 +263,27 @@
 "onboarding.welcome" = "ยินดีต้อนรับสู่ LifeIndex";
 "onboarding.welcomeSubtitle" = "ผู้ช่วยสุขภาพส่วนตัวของคุณ";
 "onboarding.selectLanguage" = "เลือกภาษาของคุณ";
+"onboarding.selectLanguageDesc" = "เลือกภาษาที่คุณต้องการใช้ในแอป";
 "onboarding.continue" = "ดำเนินการต่อ";
 "onboarding.getStarted" = "เริ่มต้น";
 "onboarding.healthPermission" = "การเข้าถึงข้อมูลสุขภาพ";
 "onboarding.healthPermissionDesc" = "LifeIndex ต้องการเข้าถึงข้อมูลสุขภาพของคุณเพื่อให้ข้อมูลเชิงลึกและติดตามความคืบหน้า";
 "onboarding.allowAccess" = "อนุญาตการเข้าถึง";
 "onboarding.skip" = "ข้ามไปก่อน";
+"onboarding.yourScore" = "คะแนน LifeIndex ของคุณ";
+"onboarding.trackEverythingDesc" = "ติดตามทุกด้านของสุขภาพในที่เดียว";
+"onboarding.privacy" = "ความเป็นส่วนตัวของคุณสำคัญ";
+"onboarding.privacyDesc" = "ข้อมูลสุขภาพของคุณถูกเก็บอย่างปลอดภัยและเป็นส่วนตัว";
+"onboarding.privacy.onDevice" = "ข้อมูลทั้งหมดเก็บในอุปกรณ์ของคุณ";
+"onboarding.privacy.noSelling" = "เราไม่ขายข้อมูลของคุณ";
+"onboarding.privacy.appleHealth" = "ซิงค์กับ Apple Health";
 "onboarding.features.sleep" = "ติดตามคุณภาพการนอน";
 "onboarding.features.activity" = "ติดตามกิจกรรมประจำวัน";
 "onboarding.features.nutrition" = "บันทึกอาหารและโภชนาการ";
 "onboarding.features.insights" = "รับข้อมูลเชิงลึกจาก AI";
+"onboarding.features.lifeindex" = "คะแนน LifeIndex";
+"onboarding.features.calories" = "ติดตามแคลอรี่";
+"onboarding.features.mood" = "บันทึกอารมณ์";
 
 // MARK: - Streak
 "streak.title" = "สถิติและภารกิจ";

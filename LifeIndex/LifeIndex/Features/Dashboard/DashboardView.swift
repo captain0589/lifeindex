@@ -254,9 +254,13 @@ struct YesterdayReportSheet: View {
         guard let data = yesterdayData else { return [] }
         var breakdown: [(type: HealthMetricType, score: Double, value: Double)] = []
 
+        // Use factor = 1.0 for past days (consistent with DayDetailSheet and weekly scores)
+        let factor = 1.0
+
         for (type, value) in data.metrics {
             guard let target = LifeIndexScoreEngine.targets[type] else { continue }
-            let score = LifeIndexScoreEngine.scoreMetric(value: value, target: target, type: type)
+            let effectiveTarget = LifeIndexScoreEngine.scaledTarget(for: type, target: target, factor: factor)
+            let score = LifeIndexScoreEngine.scoreMetric(value: value, target: effectiveTarget, type: type)
             breakdown.append((type: type, score: score, value: value))
         }
 
@@ -1069,7 +1073,9 @@ struct ScoreHistoryDetailSheet: View {
                 }
             }
             .sheet(item: $selectedDayForDetail) { date in
-                DayDetailSheet(date: date, weeklyData: weeklyData)
+                // Look up pre-calculated score for consistency
+                let score = weeklyScores.first { Calendar.current.isDate($0.date, inSameDayAs: date) }?.score
+                DayDetailSheet(date: date, weeklyData: weeklyData, preCalculatedScore: score)
             }
         }
     }
@@ -1084,6 +1090,7 @@ struct ScoreHistoryDetailSheet: View {
 struct DayDetailSheet: View {
     let date: Date
     let weeklyData: [DailyHealthSummary]
+    var preCalculatedScore: Int? = nil  // Optional: pass score from weekly chart for consistency
 
     @Environment(\.dismiss) private var dismiss
 
@@ -1102,6 +1109,10 @@ struct DayDetailSheet: View {
     }
 
     private var dayScore: Int {
+        // Use pre-calculated score if provided (ensures consistency with weekly chart)
+        if let score = preCalculatedScore {
+            return score
+        }
         guard let data = dayData else { return 0 }
         // For today: use time-aware score (consistent with main display)
         // For past days: use final score (full day evaluation)
